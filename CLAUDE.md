@@ -188,21 +188,40 @@ supabase/                # Database configuration
 
 ## Testing Strategy
 
-### Current Test Suite ✅ 285 TESTS IMPLEMENTED
-- **Comprehensive pytest framework** - 10+ test files covering all major components
-- **API endpoint validation** - All 27+ endpoints tested with proper validation
-- **Cross-system integration** - Phase 3 systems working together (77% pass rate)
-- **Database connectivity** - Supabase connection and CRUD operations verified
-- **End-to-end workflows** - Complete scene editing workflows validated
-- **Model validation** - All SQLModel schemas tested for correctness
-- **Advanced test coverage** - Knowledge snapshots, temporal relationships, content operations
+### MANDATORY END-TO-END TESTING PROTOCOL
 
-### Test Coverage Areas
-- **Database operations** - Connection, CRUD, transactions
-- **API endpoints** - Request/response validation, error handling
-- **Business logic** - Scene workflows, entity relationships
-- **Input validation** - Schema validation, edge cases
-- **Integration flows** - End-to-end user scenarios
+**⚠️ CRITICAL RULE**: Never claim a feature is "working" or "tested" without end-to-end browser validation.
+
+#### Required Testing Sequence:
+1. **Component Testing** - Individual APIs, endpoints, functions
+2. **Integration Testing** - Multi-service data flows  
+3. **🚨 MANDATORY: Browser Testing** - Real user workflows with Playwright
+4. **User Acceptance** - Actual feature usage scenarios
+
+#### Browser Testing Requirements:
+```bash
+# ALWAYS test with real browser before marking complete
+# Use Playwright MCP agent for all UI features
+test-writer-fixer agent → browser validation → screenshot evidence
+```
+
+**Examples of Insufficient Testing:**
+- ❌ "API returns 200, static files serve → feature works" 
+- ❌ "curl commands succeed → frontend integration works"
+- ❌ "Individual components tested → full workflow works"
+
+**Required Evidence:**
+- ✅ Screenshots of working UI
+- ✅ Console logs showing successful data loading
+- ✅ User workflow completion (click → result)
+- ✅ Error handling verification
+
+### Current Test Suite ✅ 285 TESTS IMPLEMENTED + BROWSER VALIDATION
+- **Backend testing** - pytest framework covering all APIs
+- **Integration testing** - Multi-service data flows
+- **🆕 Browser testing** - Playwright validation for all UI features
+- **End-to-end workflows** - Complete user scenarios validated in browser
+- **Cross-system validation** - Supabase + FastAPI hybrid architecture tested
 
 ## Development Notes
 

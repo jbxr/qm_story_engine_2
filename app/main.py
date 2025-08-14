@@ -4,6 +4,8 @@ Simplified version based on proven test_minimal_api.py patterns
 """
 import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from .api.scenes import router as scenes_router
 from .api.entities import router as entities_router
@@ -14,6 +16,7 @@ from .api.content import router as content_router
 from .api.relationships import router as relationships_router
 from .api.search import router as search_router
 from .services.database import get_db
+from .config import get_settings
 
 # Load environment variables
 load_dotenv()
@@ -35,13 +38,38 @@ app.include_router(content_router, prefix="/api/v1/content", tags=["content"])
 app.include_router(relationships_router, prefix="/api/v1/relationships", tags=["relationships"])
 app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/")
+def serve_frontend():
+    """Serve the main frontend application"""
+    return FileResponse('static/index.html')
+
+@app.get("/entities")
+def serve_entities():
+    """Serve the entity management page"""
+    return FileResponse('static/entities.html')
+
+@app.get("/api")
 def root():
     """Root endpoint"""
     return {
         "message": "QuantumMateria Story Engine API", 
         "version": "0.1.0",
         "status": "running"
+    }
+
+@app.get("/api/config")
+def config():
+    """Get frontend configuration"""
+    settings = get_settings()
+    return {
+        "success": True,
+        "config": {
+            "supabase_url": settings.supabase_url,
+            "supabase_anon_key": settings.supabase_key
+        }
     }
 
 @app.get("/health")

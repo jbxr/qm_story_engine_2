@@ -1,4 +1,7 @@
 {
+  "env": {
+    "RIPGREP_CONFIG_PATH": "dummy"
+  },
   "permissions": {
     "allow": [
       "WebFetch(domain:brianchambers.substack.com)",
@@ -58,9 +61,22 @@
       "mcp__supabase__execute_sql",
       "mcp__serena__replace_symbol_body",
       "mcp__serena__insert_after_symbol",
-      "mcp__serena__replace_regex"
+      "mcp__serena__replace_regex",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_handle_dialog"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/Users/josephgallo/.claude"
+    ]
   }
 }
