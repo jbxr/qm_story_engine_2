@@ -1,0 +1,92 @@
+<section id="entity-manager">
+    <header>
+        <hgroup>
+            <h1>Entity Management</h1>
+            <p>Manage characters, locations, and artifacts in your story world.</p>
+        </hgroup>
+        <div>
+            <small id="entity-count">0 entities</small>
+            <button id="create-entity-btn">+ New Entity</button>
+        </div>
+    </header>
+
+    <!-- Entity Filters -->
+    <form>
+        <fieldset role="group">
+            <select id="type-filter" aria-label="Filter by type">
+                <option value="">All Types</option>
+                <option value="character">Characters</option>
+                <option value="location">Locations</option>
+                <option value="artifact">Artifacts</option>
+            </select>
+            
+            <input type="search" id="search-input" placeholder="Search entities..." aria-label="Search entities" />
+            
+            <button type="button" id="clear-filters" role="button">Clear</button>
+        </fieldset>
+    </form>
+
+    <!-- Entity List -->
+    <main id="entity-list">
+        <span aria-busy="true">Loading entities...</span>
+    </main>
+
+    <!-- Pagination -->
+    <nav id="pagination" hidden aria-label="Entity pagination">
+        <ul>
+            <li><button id="prev-page" disabled>← Previous</button></li>
+            <li><span id="page-info">Page 1 of 1</span></li>
+            <li><button id="next-page" disabled>Next →</button></li>
+        </ul>
+    </nav>
+</section>
+
+<!-- Entity Management Modals -->
+<!-- Create/Edit Entity Modal -->
+<dialog id="entity-modal">
+    <article>
+        <header>
+            <button id="close-modal" aria-label="Close" rel="prev"></button>
+            <h2 id="modal-title">Create Entity</h2>
+        </header>
+
+        <form id="entity-form">
+            <label for="entity-name">Name
+                <input type="text" id="entity-name" required placeholder="Enter entity name" />
+            </label>
+
+            <label for="entity-type">Type
+                <select id="entity-type" required>
+                    <option value="">Select type...</option>
+                    <option value="character">Character</option>
+                    <option value="location">Location</option>
+                    <option value="artifact">Artifact</option>
+                </select>
+            </label>
+
+            <label for="entity-description">Description
+                <textarea id="entity-description" rows="4" placeholder="Enter description..."></textarea>
+            </label>
+
+            <footer>
+                <button type="button" id="cancel-btn">Cancel</button>
+                <button type="submit" id="save-btn">Save Entity</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+
+<!-- Delete Confirmation Modal -->
+<dialog id="delete-modal">
+    <article>
+        <header>
+            <h2>Delete Entity</h2>
+        </header>
+        <p>Are you sure you want to delete "<span id="delete-entity-name"></span>"?</p>
+        <p><small>This action cannot be undone.</small></p>
+        <footer>
+            <button id="cancel-delete">Cancel</button>
+            <button id="confirm-delete">Delete</button>
+        </footer>
+    </article>
+</dialog>

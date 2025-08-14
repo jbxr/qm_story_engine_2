@@ -72,7 +72,10 @@
       "mcp__playwright__browser_evaluate",
       "mcp__playwright__browser_handle_dialog",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_network_requests",
+      "WebFetch(domain:picocss.com)"
     ],
     "deny": [],
     "ask": [],

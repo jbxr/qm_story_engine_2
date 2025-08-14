@@ -150,3 +150,107 @@ Limitations (by design for PoC):
 - No persistence/backend calls; actions are purely in-UI. This matches the PoC spec but should be replaced with backend interactions later.
 - Drag-and-drop remains out of scope; up/down arrows suffice for now.
 
+---
+
+## 9. **Frontend Implementation Standards**
+
+### **Class-Less CSS Architecture**
+Based on the Pico CSS v2 implementation, we enforce a **class-less CSS approach** that relies entirely on semantic HTML:
+
+**✅ REQUIRED:**
+- Use Pico CSS v2 class-less fluid version: `@picocss/pico@2/css/pico.fluid.classless.min.css`
+- Semantic HTML5 elements: `<nav>`, `<aside>`, `<main>`, `<article>`, `<section>`, `<header>`, `<footer>`, `<hgroup>`
+- ARIA attributes for accessibility: `aria-current`, `aria-label`, `aria-busy`, `hidden`
+- CSS variables for theme customization only
+
+**❌ FORBIDDEN:**
+- CSS classes in HTML (`class="secondary"`, `class="outline"`)
+- CSS classes in JavaScript DOM manipulation (`element.className = "..."`)
+- Inline styles except for rare exceptions (`style="display: none"` → use `hidden` attribute)
+- Custom CSS frameworks or component libraries
+
+### **DOM Manipulation Best Practices**
+JavaScript should create semantic elements without CSS classes:
+
+```javascript
+// ✅ CORRECT - Semantic element creation
+const button = document.createElement('button');
+button.textContent = 'Delete';
+button.onclick = () => handleDelete(id);
+
+// ❌ WRONG - Adding CSS classes
+button.className = 'secondary outline';
+```
+
+### **Visibility and State Management**
+Use semantic attributes for UI state:
+
+```javascript
+// ✅ CORRECT - Hidden attribute
+modal.hidden = false;
+modal.showModal();
+
+// ❌ WRONG - Inline styles
+modal.style.display = 'block';
+```
+
+### **Component Architecture**
+- **Modular Pages**: Separate HTML files (`pages/welcome.html`, `pages/scenes.html`)
+- **Dynamic Loading**: Use `fetch()` API with PageLoader pattern
+- **Event Delegation**: Attach events after page content is loaded
+- **Lazy Initialization**: Initialize components only when their page loads
+
+---
+
+## 10. **Code Organization Principles**
+
+### **Separation of Concerns**
+- **HTML**: Semantic structure only, no styling concerns
+- **CSS**: Minimal custom styles (~200 lines), mostly CSS variables and layout
+- **JavaScript**: DOM manipulation and business logic, no presentation concerns
+
+### **File Structure for Frontend**
+```
+static/
+├── index.html          # Shell with navigation, loads pages dynamically
+├── style.css           # Minimal custom styles (~200 lines)
+├── app.js              # Main application logic
+├── page-loader.js      # Dynamic page loading system
+├── entities.js         # Entity management
+├── api.js              # API client wrapper
+└── pages/              # Modular page components
+    ├── welcome.html    # Dashboard page
+    ├── scenes.html     # Scene management
+    ├── entities.html   # Entity management  
+    └── scene-editor.html # Scene editing
+```
+
+### **CSS Architecture Guidelines**
+- **Theme Variables**: All colors, fonts, spacing via CSS custom properties
+- **Semantic Selectors**: Target HTML elements directly (`main`, `aside nav a`)
+- **Minimal Overrides**: Only override Pico defaults when necessary for UX
+- **No Utility Classes**: Avoid creating utility classes like `.hidden`, `.center`
+
+---
+
+## 11. **Implementation Maintenance**
+
+### **Adding New Features**
+1. **HTML First**: Create semantic markup without classes
+2. **Test with Pico**: Verify styling works with default Pico CSS
+3. **Minimal Custom CSS**: Add custom styles only if Pico defaults insufficient
+4. **DOM Manipulation**: Create elements programmatically using semantic approach
+5. **Page Integration**: Use PageLoader pattern for new pages
+
+### **Debugging and Troubleshooting**
+- **CSS Issues**: Check if semantic HTML structure is correct
+- **JavaScript Issues**: Verify elements exist before manipulation
+- **Styling Problems**: Use browser dev tools to check CSS variable values
+- **Page Loading**: Check browser console for fetch errors
+
+### **Future Evolution**
+- **Framework Migration**: Semantic HTML easily ports to React/Vue/Svelte
+- **Theme Updates**: Change CSS variables to update entire theme
+- **Component Extraction**: Convert page patterns to reusable components
+- **Performance**: Semantic approach scales better than class-heavy frameworks
+

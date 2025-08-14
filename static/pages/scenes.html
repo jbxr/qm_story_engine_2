@@ -1,0 +1,61 @@
+<section id="scenes-list">
+    <header>
+        <hgroup>
+            <h1>Scenes</h1>
+            <p>Manage and organize your story scenes in chronological order.</p>
+        </hgroup>
+        <div>
+            <small id="scenes-count">0 scenes</small>
+            <button id="create-scene-btn">+ New Scene</button>
+        </div>
+    </header>
+
+    <!-- Scenes Filters -->
+    <form>
+        <fieldset role="group">
+            <select id="scenes-sort-filter" aria-label="Sort by">
+                <option value="timestamp">Sort by Timestamp</option>
+                <option value="created_at">Sort by Created</option>
+                <option value="title">Sort by Title</option>
+            </select>
+            
+            <select id="location-filter" aria-label="Filter by location">
+                <option value="">All Locations</option>
+                <!-- Populated dynamically -->
+            </select>
+            
+            <input type="search" id="scenes-search-input" placeholder="Search scenes..." aria-label="Search scenes" />
+            
+            <button type="button" id="clear-scenes-filters" role="button">Clear</button>
+        </fieldset>
+    </form>
+
+    <!-- Scenes Table -->
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Timeline</th>
+                <th scope="col">Scene Title</th>
+                <th scope="col">Location</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="scenes-table-body">
+            <tr>
+                <td colspan="5">
+                    <span aria-busy="true">Loading scenes...</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <nav id="scenes-pagination" hidden aria-label="Scenes pagination">
+        <ul>
+            <li><button id="scenes-prev-page" disabled>← Previous</button></li>
+            <li><span id="scenes-page-info">Page 1 of 1</span></li>
+            <li><button id="scenes-next-page" disabled>Next →</button></li>
+        </ul>
+    </nav>
+</section>

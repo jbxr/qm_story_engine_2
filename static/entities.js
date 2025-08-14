@@ -249,7 +249,13 @@ class EntityManager {
 
     renderEntities() {
         const container = document.getElementById('entity-list');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ entity-list element not found');
+            return;
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
 
         // Filter out any invalid entities before rendering
         const validEntities = this.entities.filter(entity => {
@@ -261,63 +267,113 @@ class EntityManager {
         });
 
         if (validEntities.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>No entities found</h3>
-                    <p>Create your first character, location, or artifact to get started.</p>
-                    <button onclick="window.entityManager.showCreateModal()" class="primary-btn">
-                        + Create Entity
-                    </button>
-                </div>
-            `;
+            const article = document.createElement('article');
+            
+            const header = document.createElement('header');
+            const title = document.createElement('h3');
+            title.textContent = 'No entities found';
+            header.appendChild(title);
+            
+            const description = document.createElement('p');
+            description.textContent = 'Create your first character, location, or artifact to get started.';
+            
+            const footer = document.createElement('footer');
+            const button = document.createElement('button');
+            button.textContent = '+ Create Entity';
+            button.onclick = () => window.entityManager.showCreateModal();
+            footer.appendChild(button);
+            
+            article.appendChild(header);
+            article.appendChild(description);
+            article.appendChild(footer);
+            container.appendChild(article);
             return;
         }
 
-        const html = validEntities.map(entity => this.renderEntityCard(entity)).join('');
-        container.innerHTML = html;
+        // Create entity cards using DOM manipulation
+        validEntities.forEach(entity => {
+            const card = this.createEntityCard(entity);
+            if (card) {
+                container.appendChild(card);
+            }
+        });
+        
+        console.log(`✅ Rendered ${validEntities.length} entity cards`);
     }
 
-    renderEntityCard(entity) {
+    createEntityCard(entity) {
         // Validate entity has required fields
         if (!entity || !entity.id || !entity.name) {
             console.error('❌ Invalid entity structure for card rendering:', entity);
-            return ''; // Return empty string instead of broken HTML
+            return null;
         }
         
-        const description = (entity.description || '').substring(0, 150) + 
-                          (entity.description && entity.description.length > 150 ? '...' : '');
+        const article = document.createElement('article');
+        article.dataset.id = entity.id;
         
-        const entityType = entity.entity_type || 'unknown';
+        // Header with name and type
+        const header = document.createElement('header');
+        const hgroup = document.createElement('hgroup');
         
-        return `
-            <div class="entity-card" data-id="${entity.id}">
-                <div class="entity-card-header">
-                    <h3 class="entity-name">${this.escapeHtml(entity.name)}</h3>
-                    <span class="entity-type ${entityType}">${entityType}</span>
-                </div>
-                
-                <p class="entity-description">${this.escapeHtml(description)}</p>
-                
-                <div class="entity-actions">
-                    <button class="action-btn edit" onclick="window.entityManager.showEditModal('${entity.id}')">
-                        Edit
-                    </button>
-                    <button class="action-btn delete" onclick="window.entityManager.showDeleteModal('${entity.id}')">
-                        Delete
-                    </button>
-                </div>
-            </div>
-        `;
+        const title = document.createElement('h3');
+        title.textContent = entity.name;
+        
+        const typeContainer = document.createElement('p');
+        const small = document.createElement('small');
+        const kbd = document.createElement('kbd');
+        kbd.setAttribute('data-tooltip', 'Entity Type');
+        kbd.textContent = entity.entity_type || 'unknown';
+        small.appendChild(kbd);
+        typeContainer.appendChild(small);
+        
+        hgroup.appendChild(title);
+        hgroup.appendChild(typeContainer);
+        header.appendChild(hgroup);
+        
+        // Description
+        const description = document.createElement('p');
+        const descText = entity.description || '';
+        const truncatedDesc = descText.substring(0, 150) + (descText.length > 150 ? '...' : '');
+        description.textContent = truncatedDesc;
+        
+        // Footer with action buttons
+        const footer = document.createElement('footer');
+        const buttonGroup = document.createElement('div');
+        buttonGroup.setAttribute('role', 'group');
+        
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.onclick = () => window.entityManager.showEditModal(entity.id);
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.onclick = () => window.entityManager.showDeleteModal(entity.id);
+        
+        buttonGroup.appendChild(editButton);
+        buttonGroup.appendChild(deleteButton);
+        footer.appendChild(buttonGroup);
+        
+        // Assemble the card
+        article.appendChild(header);
+        article.appendChild(description);
+        article.appendChild(footer);
+        
+        return article;
     }
 
     showLoadingState() {
         const container = document.getElementById('entity-list');
         if (container) {
-            container.innerHTML = `
-                <div class="loading-state">
-                    <p>Loading entities...</p>
-                </div>
-            `;
+            container.innerHTML = '';
+            
+            const article = document.createElement('article');
+            article.setAttribute('aria-busy', 'true');
+            
+            const message = document.createElement('p');
+            message.textContent = 'Loading entities...';
+            
+            article.appendChild(message);
+            container.appendChild(article);
         }
     }
 
@@ -328,11 +384,11 @@ class EntityManager {
         const pageInfo = document.getElementById('page-info');
 
         if (this.totalPages <= 1) {
-            pagination.style.display = 'none';
+            pagination.hidden = true;
             return;
         }
 
-        pagination.style.display = 'flex';
+        pagination.hidden = false;
         
         if (prevBtn) prevBtn.disabled = this.currentPage <= 1;
         if (nextBtn) nextBtn.disabled = this.currentPage >= this.totalPages;
@@ -379,12 +435,16 @@ class EntityManager {
     }
 
     showModal() {
-        document.getElementById('entity-modal').style.display = 'flex';
+        const modal = document.getElementById('entity-modal');
+        modal.hidden = false;
+        modal.showModal();
         document.getElementById('entity-name').focus();
     }
 
     hideModal() {
-        document.getElementById('entity-modal').style.display = 'none';
+        const modal = document.getElementById('entity-modal');
+        modal.hidden = true;
+        modal.close();
         this.editingEntity = null;
     }
 
@@ -394,11 +454,15 @@ class EntityManager {
 
         this.entityToDelete = entity;
         document.getElementById('delete-entity-name').textContent = entity.name;
-        document.getElementById('delete-modal').style.display = 'flex';
+        const modal = document.getElementById('delete-modal');
+        modal.hidden = false;
+        modal.showModal();
     }
 
     hideDeleteModal() {
-        document.getElementById('delete-modal').style.display = 'none';
+        const modal = document.getElementById('delete-modal');
+        modal.hidden = true;
+        modal.close();
         this.entityToDelete = null;
     }
 
@@ -484,9 +548,6 @@ class EntityManager {
     }
 }
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('entity-manager')) {
-        window.entityManager = new EntityManager();
-    }
-});
+// Make EntityManager available globally for dynamic page loading
+// The PageLoader will create instances when needed
+window.EntityManager = EntityManager;

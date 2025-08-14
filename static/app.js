@@ -61,8 +61,6 @@ class StoryEngine {
             () => this.createScene());
         document.getElementById('create-entity-btn')?.addEventListener('click', 
             () => this.createEntity());
-        document.getElementById('create-goal-btn')?.addEventListener('click', 
-            () => this.createGoal());
         
         // Tool buttons
         document.getElementById('expand-all')?.addEventListener('click', 
@@ -70,66 +68,10 @@ class StoryEngine {
         document.getElementById('collapse-all')?.addEventListener('click', 
             () => this.collapseAll());
             
-        // View switching - Wire up "Manage Entities" button
-        document.querySelector('button[onclick*="entities"]')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.showView('entity-manager');
-        });
+        // Page loading integration
+        // Event handlers will be attached by PageLoader when pages are loaded
     }
 
-    // =================================================================
-    // VIEW SWITCHING - Simple show/hide logic for SPA
-    // =================================================================
-    
-    showView(viewName) {
-        // Hide all views
-        const views = ['welcome-state', 'scenes-list', 'scene-editor', 'entity-manager'];
-        views.forEach(view => {
-            const element = document.getElementById(view);
-            if (element) {
-                element.style.display = 'none';
-                element.classList.remove('active');
-            }
-        });
-        
-        // Show target view
-        const targetView = document.getElementById(viewName);
-        if (targetView) {
-            const displayType = ['entity-manager', 'scenes-list'].includes(viewName) ? 'flex' : 'block';
-            targetView.style.display = displayType;
-            targetView.classList.add('active');
-            
-            // Initialize managers if needed
-            if (viewName === 'entity-manager' && window.entityManager) {
-                window.entityManager.loadEntities();
-            } else if (viewName === 'scenes-list') {
-                this.loadScenes();
-                this.updateScenesCount();
-            }
-        }
-        
-        // Update navigation active state
-        this.updateNavActiveState(viewName);
-        
-        console.log(`📱 Switched to view: ${viewName}`);
-    }
-    
-    updateNavActiveState(viewName) {
-        // Remove active state from all nav links
-        document.querySelectorAll('aside nav a').forEach(item => {
-            item.removeAttribute('aria-current');
-        });
-        
-        // Add active state based on current view
-        let activeNavIndex = 0; // Dashboard by default
-        if (viewName === 'scenes-list' || viewName === 'scene-editor') activeNavIndex = 1; // Scenes
-        else if (viewName === 'entity-manager') activeNavIndex = 2; // Entities
-        
-        const navLinks = document.querySelectorAll('aside nav a');
-        if (navLinks[activeNavIndex]) {
-            navLinks[activeNavIndex].setAttribute('aria-current', 'page');
-        }
-    }
 
     updateScenesCount() {
         const countElement = document.getElementById('scenes-count');
@@ -143,11 +85,11 @@ class StoryEngine {
         // Load system health from FastAPI
         await this.checkSystemHealth();
         
-        // Load data via Supabase direct calls
+        // Load data but don't render until needed
+        // Data will be rendered when pages are loaded
         await Promise.all([
-            this.loadScenes(),
-            this.loadEntities(),
-            this.loadGoals()
+            this.loadScenesData(),
+            this.loadEntitiesData(),
         ]);
     }
 
@@ -155,7 +97,7 @@ class StoryEngine {
     // SUPABASE DIRECT OPERATIONS (Tier 0)
     // =================================================================
 
-    async loadScenes() {
+    async loadScenesData() {
         try {
             const { data, error } = await this.supabase
                 .from('scenes')
@@ -165,12 +107,16 @@ class StoryEngine {
             if (error) throw error;
 
             this.scenes = data || [];
-            this.renderScenesGrid(this.scenes);
-            console.log('✅ Scenes loaded:', this.scenes.length);
+            console.log('✅ Scenes data loaded:', this.scenes.length);
         } catch (error) {
-            console.error('❌ Failed to load scenes:', error);
+            console.error('❌ Failed to load scenes data:', error);
             this.showError('Failed to load scenes: ' + error.message);
         }
+    }
+
+    async loadScenes() {
+        await this.loadScenesData();
+        this.renderScenesGrid(this.scenes);
     }
 
     async editScene(sceneId) {
@@ -187,7 +133,9 @@ class StoryEngine {
         }
         
         // Switch to scene editor
-        this.showView('scene-editor');
+        if (window.pageLoader) {
+            window.pageLoader.loadPage('scene-editor');
+        }
         
         // TODO: Load scene blocks and full scene data
     }
@@ -216,7 +164,7 @@ class StoryEngine {
         }
     }
 
-    async loadEntities() {
+    async loadEntitiesData() {
         try {
             const { data, error } = await this.supabase
                 .from('entities')
@@ -226,31 +174,18 @@ class StoryEngine {
 
             if (error) throw error;
 
-            this.renderEntitiesList(data || []);
+            this.entitiesPreview = data || [];
+            console.log('✅ Entities data loaded:', this.entitiesPreview.length);
         } catch (error) {
-            console.error('Failed to load entities:', error);
-            this.updateElement('entities-list', 
-                '<p class="error">Failed to load entities</p>');
+            console.error('❌ Failed to load entities data:', error);
         }
     }
 
-    async loadGoals() {
-        try {
-            const { data, error } = await this.supabase
-                .from('story_goals')
-                .select('id, description, verb, created_at')
-                .order('created_at', { ascending: false })
-                .limit(10);
-
-            if (error) throw error;
-
-            this.renderGoalsList(data || []);
-        } catch (error) {
-            console.error('Failed to load goals:', error);
-            this.updateElement('goals-list', 
-                '<p class="error">Failed to load goals</p>');
-        }
+    async loadEntities() {
+        await this.loadEntitiesData();
+        this.renderEntitiesList(this.entitiesPreview);
     }
+
 
     async createScene() {
         try {
@@ -305,31 +240,6 @@ class StoryEngine {
         }
     }
 
-    async createGoal() {
-        try {
-            const description = prompt('Goal description:');
-            if (!description) return;
-
-            const { data, error } = await this.supabase
-                .from('story_goals')
-                .insert([
-                    {
-                        description: description,
-                        verb: 'achieve'
-                    }
-                ])
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            console.log('✅ Goal created via Supabase:', data);
-            await this.loadGoals(); // Refresh list
-        } catch (error) {
-            console.error('Failed to create goal:', error);
-            alert('Failed to create goal: ' + error.message);
-        }
-    }
 
     // =================================================================
     // FASTAPI COMMAND OPERATIONS (Tier 1 & 2)
@@ -434,95 +344,192 @@ Benefits: Business logic, validation, complex operations`;
 
     renderScenesGrid(scenes) {
         const tbody = document.getElementById('scenes-table-body');
-        if (!tbody) return;
-
-        if (scenes.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="empty-state" style="text-align: center; padding: 3rem;">
-                        <h3>No scenes found</h3>
-                        <p>Create your first scene to begin telling your story.</p>
-                        <button onclick="window.storyEngine.createScene()" class="primary-btn">
-                            + Create Scene
-                        </button>
-                    </td>
-                </tr>
-            `;
+        if (!tbody) {
+            console.warn('⚠️ scenes-table-body element not found - page not loaded yet');
             return;
         }
 
-        const html = scenes.map(scene => this.renderSceneRow(scene)).join('');
-        tbody.innerHTML = html;
+        // Clear existing content
+        tbody.innerHTML = '';
+
+        if (scenes.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            cell.style.textAlign = 'center';
+            cell.style.padding = '3rem';
+            
+            const article = document.createElement('article');
+            
+            const header = document.createElement('header');
+            const title = document.createElement('h3');
+            title.textContent = 'No scenes found';
+            header.appendChild(title);
+            
+            const description = document.createElement('p');
+            description.textContent = 'Create your first scene to begin telling your story.';
+            
+            const footer = document.createElement('footer');
+        const button = document.createElement('button');
+            button.textContent = '+ Create Scene';
+            button.onclick = () => window.storyEngine.createScene();
+            footer.appendChild(button);
+            
+            article.appendChild(header);
+            article.appendChild(description);
+            article.appendChild(footer);
+            cell.appendChild(article);
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+
+        // Create rows using DOM manipulation
+        scenes.forEach(scene => {
+            const row = this.createSceneRow(scene);
+            tbody.appendChild(row);
+        });
+        
+        console.log(`✅ Rendered ${scenes.length} scenes`);
     }
 
-    renderSceneRow(scene) {
-        const title = this.escapeHtml(scene.title || 'Untitled Scene');
-        const location = scene.location_id || 'No location';
-        const timestamp = scene.timestamp ? `Day ${scene.timestamp}` : 'No timestamp';
-        const createdDate = new Date(scene.created_at).toLocaleDateString();
-
-        return `
-            <tr data-id="${scene.id}" onclick="window.storyEngine.editScene('${scene.id}')">
-                <td class="scene-timestamp-cell">${timestamp}</td>
-                <td class="scene-title-cell">${title}</td>
-                <td class="scene-location-cell">${location}</td>
-                <td>${createdDate}</td>
-                <td class="scene-actions-cell">
-                    <button onclick="event.stopPropagation(); window.storyEngine.editScene('${scene.id}')">
-                        Edit
-                    </button>
-                    <button class="delete" onclick="event.stopPropagation(); window.storyEngine.deleteScene('${scene.id}')">
-                        Delete
-                    </button>
-                </td>
-            </tr>
-        `;
+    createSceneRow(scene) {
+        const row = document.createElement('tr');
+        row.dataset.id = scene.id;
+        row.onclick = () => window.storyEngine.editScene(scene.id);
+        
+        // Timeline cell
+        const timestampCell = document.createElement('td');
+        timestampCell.textContent = scene.timestamp ? `Day ${scene.timestamp}` : 'No timestamp';
+        
+        // Title cell
+        const titleCell = document.createElement('td');
+        titleCell.textContent = scene.title || 'Untitled Scene';
+        
+        // Location cell
+        const locationCell = document.createElement('td');
+        locationCell.textContent = scene.location_id || 'No location';
+        
+        // Created date cell
+        const createdCell = document.createElement('td');
+        createdCell.textContent = new Date(scene.created_at).toLocaleDateString();
+        
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.onclick = (e) => {
+            e.stopPropagation();
+            window.storyEngine.editScene(scene.id);
+        };
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.onclick = (e) => {
+            e.stopPropagation();
+            window.storyEngine.deleteScene(scene.id);
+        };
+        
+        actionsCell.appendChild(editButton);
+        actionsCell.appendChild(deleteButton);
+        
+        // Assemble row
+        row.appendChild(timestampCell);
+        row.appendChild(titleCell);
+        row.appendChild(locationCell);
+        row.appendChild(createdCell);
+        row.appendChild(actionsCell);
+        
+        return row;
     }
 
     renderEntitiesList(entities) {
+        const container = document.getElementById('entities-list');
+        if (!container) {
+            console.warn('⚠️ entities-list element not found - page not loaded yet');
+            return;
+        }
+        
+        // Clear existing content
+        container.innerHTML = '';
+        
         if (entities.length === 0) {
-            this.updateElement('entities-list', '<p class="empty">No entities yet</p>');
+            const emptyMessage = document.createElement('p');
+            const em = document.createElement('em');
+            em.textContent = 'No entities yet';
+            emptyMessage.appendChild(em);
+            container.appendChild(emptyMessage);
             return;
         }
 
-        const html = entities.map(entity => `
-            <div class="nav-item" data-id="${entity.id}">
-                <strong>${this.escapeHtml(entity.name)}</strong>
-                <small>${entity.entity_type}</small>
-            </div>
-        `).join('');
-
-        this.updateElement('entities-list', html);
+        // Create entity articles using DOM manipulation
+        entities.forEach(entity => {
+            const article = document.createElement('article');
+            article.dataset.id = entity.id;
+            
+            const header = document.createElement('header');
+            const strong = document.createElement('strong');
+            strong.textContent = entity.name;
+            header.appendChild(strong);
+            
+            const small = document.createElement('small');
+            small.textContent = entity.entity_type;
+            
+            article.appendChild(header);
+            article.appendChild(small);
+            container.appendChild(article);
+        });
+        
+        console.log(`✅ Rendered ${entities.length} entities in dashboard`);
     }
 
-    renderGoalsList(goals) {
-        if (goals.length === 0) {
-            this.updateElement('goals-list', '<p class="empty">No goals yet</p>');
-            return;
-        }
-
-        const html = goals.map(goal => `
-            <div class="nav-item" data-id="${goal.id}">
-                <strong>${this.escapeHtml((goal.description || '').substring(0, 50))}...</strong>
-                <small>${goal.verb || 'goal'}</small>
-            </div>
-        `).join('');
-
-        this.updateElement('goals-list', html);
-    }
 
     renderSystemStatus(health) {
-        const statusClass = health.status === 'healthy' ? 'healthy' : 'unhealthy';
-        const html = `
-            <div class="status-${statusClass}">
-                <p><strong>Status:</strong> ${health.status}</p>
-                <p><strong>Database:</strong> ${health.database}</p>
-                <p><strong>Entities:</strong> ${health.entity_count || 0}</p>
-                <p><strong>Knowledge:</strong> ${health.knowledge_snapshot_count || 0}</p>
-            </div>
-        `;
-
-        this.updateElement('system-status', html);
+        const container = document.getElementById('system-status');
+        if (!container) {
+            console.error('❌ system-status element not found');
+            return;
+        }
+        
+        // Clear existing content
+        container.innerHTML = '';
+        
+        const isHealthy = health.status === 'healthy';
+        
+        const statusDiv = document.createElement('div');
+        if (!isHealthy) {
+            statusDiv.setAttribute('role', 'alert');
+        }
+        
+        // Status
+        const statusP = document.createElement('p');
+        statusP.innerHTML = '<strong>Status:</strong> ';
+        const statusMark = document.createElement('mark');
+        statusMark.className = isHealthy ? 'valid' : 'invalid';
+        statusMark.textContent = health.status;
+        statusP.appendChild(statusMark);
+        
+        // Database
+        const dbP = document.createElement('p');
+        dbP.innerHTML = `<strong>Database:</strong> ${health.database}`;
+        
+        // Entities
+        const entitiesP = document.createElement('p');
+        entitiesP.innerHTML = `<strong>Entities:</strong> ${health.entity_count || 0}`;
+        
+        // Knowledge
+        const knowledgeP = document.createElement('p');
+        knowledgeP.innerHTML = `<strong>Knowledge:</strong> ${health.knowledge_snapshot_count || 0}`;
+        
+        statusDiv.appendChild(statusP);
+        statusDiv.appendChild(dbP);
+        statusDiv.appendChild(entitiesP);
+        statusDiv.appendChild(knowledgeP);
+        
+        container.appendChild(statusDiv);
+        
+        console.log(`✅ System status rendered: ${health.status}`);
     }
 
     updateDemoOutput(text) {
@@ -591,27 +598,27 @@ Benefits: Business logic, validation, complex operations`;
     showWelcomeState(show) {
         const welcomeState = document.getElementById('welcome-state');
         if (welcomeState) {
-            welcomeState.style.display = show ? 'block' : 'none';
+            welcomeState.hidden = !show;
         }
     }
 
     showSceneEditor(show) {
         const sceneEditor = document.getElementById('scene-editor');
         if (sceneEditor) {
-            sceneEditor.style.display = show ? 'flex' : 'none';
+            sceneEditor.hidden = !show;
         }
     }
 
     highlightSelectedScene(sceneId) {
         // Remove previous selection
-        document.querySelectorAll('.scene-item').forEach(item => {
-            item.classList.remove('selected');
+        document.querySelectorAll('tr[data-id]').forEach(item => {
+            item.removeAttribute('aria-current');
         });
         
         // Highlight new selection
-        const selectedItem = document.querySelector(`.scene-item[data-id="${sceneId}"]`);
+        const selectedItem = document.querySelector(`tr[data-id="${sceneId}"]`);
         if (selectedItem) {
-            selectedItem.classList.add('selected');
+            selectedItem.setAttribute('aria-current', 'true');
         }
     }
 
@@ -632,15 +639,15 @@ Benefits: Business logic, validation, complex operations`;
 
     renderEntityTags(entities) {
         if (!entities || entities.length === 0) {
-            this.updateElement('linked-entities', '<p class="empty">No linked entities</p>');
+            this.updateElement('linked-entities', '<p><em>No linked entities</em></p>');
             return;
         }
 
         const html = entities.map(entity => `
-            <span class="entity-tag ${entity.entity_type}" data-id="${entity.id}">
+            <kbd data-tooltip="${entity.entity_type}" data-id="${entity.id}">
                 ${this.escapeHtml(entity.name)}
-            </span>
-        `).join('');
+            </kbd>
+        `).join(' ');
 
         this.updateElement('linked-entities', html);
     }
@@ -648,10 +655,12 @@ Benefits: Business logic, validation, complex operations`;
     renderSceneBlocks(blocks) {
         if (!blocks || blocks.length === 0) {
             this.updateElement('scene-content', `
-                <div class="empty-scene">
-                    <h3>Empty Scene</h3>
+                <article>
+                    <header>
+                        <h3>Empty Scene</h3>
+                    </header>
                     <p>This scene has no content blocks yet. Use the buttons below to add prose, dialogue, or milestones.</p>
-                </div>
+                </article>
             `);
             return;
         }
@@ -681,19 +690,20 @@ Benefits: Business logic, validation, complex operations`;
             case 'dialogue':
                 preview = content.substring(0, 50) + (content.length > 50 ? '...' : '');
                 blockContent = `
-                    <div class="dialogue-content">
-                        <div class="dialogue-participants">
-                            <label>Speaker:</label>
-                            <select>
+                    <fieldset>
+                        <legend>Participants</legend>
+                        <div role="group">
+                            <label for="speaker-${blockId}">Speaker:</label>
+                            <select id="speaker-${blockId}">
                                 <option value="">Select character...</option>
                             </select>
-                            <label>Listener:</label>
-                            <select>
+                            <label for="listener-${blockId}">Listener:</label>
+                            <select id="listener-${blockId}">
                                 <option value="">Select character...</option>
                             </select>
                         </div>
                         <textarea placeholder="Write dialogue here...">${this.escapeHtml(content)}</textarea>
-                    </div>
+                    </fieldset>
                 `;
                 break;
                 
@@ -703,36 +713,41 @@ Benefits: Business logic, validation, complex operations`;
                 const object = block.object || '';
                 preview = `${subject} ${verb} ${object}`.trim();
                 blockContent = `
-                    <div class="milestone-content">
-                        <div class="milestone-field">
-                            <label>Subject</label>
-                            <input type="text" value="${this.escapeHtml(subject)}" placeholder="Who or what">
+                    <fieldset>
+                        <legend>Milestone Structure</legend>
+                        <div class="grid">
+                            <label>
+                                Subject
+                                <input type="text" value="${this.escapeHtml(subject)}" placeholder="Who or what">
+                            </label>
+                            <div style="display: flex; align-items: end; justify-content: center;">
+                                <mark>${verb}</mark>
+                            </div>
+                            <label>
+                                Object
+                                <input type="text" value="${this.escapeHtml(object)}" placeholder="What happens">
+                            </label>
                         </div>
-                        <div class="milestone-verb">${verb}</div>
-                        <div class="milestone-field">
-                            <label>Object</label>
-                            <input type="text" value="${this.escapeHtml(object)}" placeholder="What happens">
-                        </div>
-                    </div>
+                    </fieldset>
                 `;
                 break;
         }
 
         return `
-            <details class="scene-block" open data-block-id="${blockId}" data-block-type="${blockType}">
-                <summary class="block-header">
-                    <div class="block-header-left">
-                        <span class="block-type">${blockType}</span>
-                        <span class="block-preview">${preview}</span>
-                    </div>
-                    <div class="block-controls">
-                        <button class="block-control-btn" onclick="event.stopPropagation(); window.storyEngine.moveBlockUp('${blockId}')" title="Move up">↑</button>
-                        <button class="block-control-btn" onclick="event.stopPropagation(); window.storyEngine.moveBlockDown('${blockId}')" title="Move down">↓</button>
-                        <button class="block-control-btn" onclick="event.stopPropagation(); window.storyEngine.editBlock('${blockId}')" title="Edit">✎</button>
-                        <button class="block-control-btn" onclick="event.stopPropagation(); window.storyEngine.deleteBlock('${blockId}')" title="Delete">✕</button>
+            <details open data-block-id="${blockId}" data-block-type="${blockType}">
+                <summary>
+                    <hgroup>
+                        <h4><mark>${blockType}</mark></h4>
+                        <p>${preview}</p>
+                    </hgroup>
+                    <div role="group">
+                        <button onclick="event.stopPropagation(); window.storyEngine.moveBlockUp('${blockId}')" title="Move up" class="secondary outline">↑</button>
+                        <button onclick="event.stopPropagation(); window.storyEngine.moveBlockDown('${blockId}')" title="Move down" class="secondary outline">↓</button>
+                        <button onclick="event.stopPropagation(); window.storyEngine.editBlock('${blockId}')" title="Edit" class="secondary outline">✎</button>
+                        <button onclick="event.stopPropagation(); window.storyEngine.deleteBlock('${blockId}')" title="Delete" class="secondary outline">✕</button>
                     </div>
                 </summary>
-                <div class="block-content">
+                <div>
                     ${blockContent}
                 </div>
             </details>
@@ -775,28 +790,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.storyEngine = new StoryEngine();
 });
 
-// Add some basic styles for nav items
-const style = document.createElement('style');
-style.textContent = `
-    /* Nav styles are now handled by Pico CSS semantic HTML */
-    
-    .empty, .error {
-        color: var(--ink-3);
-        font-style: italic;
-        font-size: 0.8rem;
-        margin: 0;
-    }
-    
-    .error {
-        color: #ff6b6b;
-    }
-    
-    .status-healthy {
-        color: #51cf66;
-    }
-    
-    .status-unhealthy {
-        color: #ff6b6b;
-    }
-`;
-document.head.appendChild(style);

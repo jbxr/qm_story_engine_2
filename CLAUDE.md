@@ -20,6 +20,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Desktop-first, dark mode** UI optimized for authoring workflows
 - **Modular block-based** scenes (prose, dialogue, milestones)
 
+### Frontend Design Principles
+- **Class-less CSS approach** - Using Pico CSS v2 fluid class-less version
+- **Semantic HTML-first** - No CSS classes in HTML or JavaScript code
+- **Minimal custom CSS** - Only ~200 lines of theme variables and layout overrides
+- **Modular page architecture** - Separate HTML files loaded dynamically
+
 ## Development Commands
 
 ```bash
@@ -223,13 +229,110 @@ test-writer-fixer agent → browser validation → screenshot evidence
 - **End-to-end workflows** - Complete user scenarios validated in browser
 - **Cross-system validation** - Supabase + FastAPI hybrid architecture tested
 
+## Frontend Development Guidelines
+
+### **CSS & Styling Rules**
+
+**✅ REQUIRED APPROACH:**
+- **Pico CSS v2 class-less fluid**: `@picocss/pico@2/css/pico.fluid.classless.min.css`
+- **Semantic HTML5 elements**: Use `<nav>`, `<aside>`, `<main>`, `<article>`, `<section>`, `<header>`, `<footer>`, `<hgroup>`
+- **ARIA attributes**: `aria-current="page"`, `aria-label`, `aria-busy="true"`, `hidden`
+- **CSS variables only**: Theme customization via custom properties in `style.css`
+
+**❌ FORBIDDEN PRACTICES:**
+- CSS classes in HTML: `class="secondary"`, `class="outline"`, `class="contrast"`
+- CSS classes in JavaScript: `element.className = "secondary outline"`
+- Inline styles: `style="display: none"` → use `hidden` attribute instead
+- Custom CSS frameworks or utility classes
+
+### **DOM Manipulation Patterns**
+
+**✅ CORRECT - Semantic element creation:**
+```javascript
+const button = document.createElement('button');
+button.textContent = 'Edit';
+button.onclick = () => handleEdit(entity.id);
+// No CSS classes added
+```
+
+**❌ WRONG - Adding CSS classes:**
+```javascript
+button.className = 'secondary outline';  // Never do this
+```
+
+### **Page Loading Architecture**
+- **Dynamic pages**: Use PageLoader pattern to load `/static/pages/*.html`
+- **Lazy initialization**: Initialize components only when page loads
+- **Event delegation**: Attach events after page content is available
+- **State management**: Use `hidden` attribute for visibility control
+
+### **Modal and Visibility Management**
+```javascript
+// ✅ CORRECT - Use hidden attribute and native dialog
+modal.hidden = false;
+modal.showModal();
+
+// ✅ CORRECT - Hide elements semantically  
+pagination.hidden = true;
+
+// ❌ WRONG - Inline styles
+modal.style.display = 'block';
+```
+
+### **File Organization Standards**
+```
+static/
+├── index.html          # App shell with navigation
+├── style.css           # ~200 lines: theme variables + minimal layout
+├── app.js              # Main application logic (no embedded CSS)
+├── page-loader.js      # Dynamic page loading system
+├── entities.js         # Entity management (no CSS classes)
+├── api.js              # API client wrapper
+└── pages/              # Modular page components
+    ├── welcome.html    # Dashboard (semantic HTML only)
+    ├── scenes.html     # Scene management
+    ├── entities.html   # Entity management
+    └── scene-editor.html # Scene editing interface
+```
+
+### **Implementation Enforcement**
+
+**🚨 MANDATORY CHECKS before claiming ANY frontend work complete:**
+1. **No CSS classes found in JavaScript**: Search codebase for `className =`, `.className`, `addClass`, CSS class strings
+2. **No inline styles**: Search for `style=` in HTML and `.style.` in JavaScript (except rare exceptions)
+3. **Semantic HTML validation**: All elements must use appropriate semantic tags
+4. **Hidden attribute usage**: All visibility control uses `hidden` attribute, not CSS display
+5. **Pico CSS compliance**: Styling works with class-less Pico CSS v2 only
+
+**VALIDATION COMMANDS:**
+```bash
+# Check for prohibited CSS class usage
+grep -r "className\s*=" static/ || echo "✅ No className usage found"
+grep -r "class.*secondary\|class.*outline" static/ || echo "✅ No CSS classes found"
+
+# Check for inline style usage  
+grep -r "style\s*=" static/ || echo "✅ No inline styles found"
+grep -r "\.style\." static/ | grep -v "\.style\.display" || echo "✅ No inline style manipulation"
+
+# Validate hidden attribute usage
+grep -r "hidden.*=" static/ | head -5
+```
+
+**REFACTORING CHECKLIST:**
+- [ ] Remove all `className` assignments from JavaScript
+- [ ] Replace `style.display` with `hidden` attribute  
+- [ ] Convert CSS class selectors to semantic element selectors
+- [ ] Verify all modals use `hidden` attribute and `showModal()`
+- [ ] Test that layout works with Pico CSS class-less version only
+
 ## Development Notes
 
 ### Current Implementation Approach ✅ VALIDATED
 - **Direct Supabase client** - Simple, proven async operations (no SQLModel complexity yet)
 - **Backend-architect validated** - Current approach rated "ARCHITECTURALLY EXCELLENT"
 - **Strategic foundation** - 15% API + 80% database foundation preserves all future options
-- **No complex frontend frameworks** - prefer server-rendered HTML with minimal JS
+- **Class-less frontend** - Pico CSS v2 with semantic HTML, no CSS classes in code
+- **Modular page architecture** - Dynamic loading of separate HTML components
 
 ### Technical Decisions
 - **Direct database operations** - Supabase client for immediate productivity

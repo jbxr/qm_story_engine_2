@@ -109,10 +109,24 @@ aside footer {
   border-top: 1px solid var(--pico-border-color);
 }
 
-/* Main Content Area */
+/* Main Content Area - Fluid Layout Optimized */
 main {
   overflow-y: auto;
   padding: 2rem;
+  /* Ensure content doesn't get too wide on large screens */
+  max-width: 1400px;
+  width: 100%;
+  /* Prevent margin collapse issues in fluid layout */
+  isolation: isolate;
+}
+
+/* Page content sections for better readability */
+main section {
+  max-width: none; /* Override any default constraints */
+}
+
+main article {
+  max-width: none; /* Override any default constraints */
 }
 
 /* Responsive Layout */
@@ -133,3 +147,57 @@ main {
     overflow-y: visible;
   }
 }
+
+/* Semantic element improvements */
+
+/* Entity tags spacing */
+kbd + kbd {
+  margin-left: 0.5rem;
+}
+
+/* Table action buttons spacing - using semantic targeting */
+td button {
+  margin-right: 0.5rem;
+}
+
+td button:last-child {
+  margin-right: 0;
+}
+
+/* Status indicators using semantic elements */
+mark[class*="valid"] {
+  color: var(--pico-color-green-500);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+mark[class*="invalid"] {
+  color: var(--pico-color-red-500);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Hidden attribute support for dynamic content */
+[hidden] {
+  display: none !important;
+}
+
+/* Fluid layout enhancements for data-heavy interfaces */
+
+/* Tables in main content should use full width efficiently */
+main table {
+  table-layout: auto;
+  width: 100%;
+}
+
+/* Form groups should be properly spaced in fluid layout */
+fieldset[role="group"] {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+fieldset[role="group"] > * {
+  flex: 1;
+  min-width: 200px;
+}
+
