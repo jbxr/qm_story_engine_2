@@ -4,5 +4,7 @@
     <file url="file://$PROJECT_DIR$/supabase/migrations/20250812230355_init.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/supabase/migrations/20250814002746_extend_relationships.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/supabase/schemas/unified_schema.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/supabase/seed.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/supabase/validate_seed_data.sql" dialect="PostgreSQL" />
   </component>
 </project>

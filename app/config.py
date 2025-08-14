@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     
     # Alternative LLM Configuration
     groq_api_key: str = Field(default="", description="Groq API key")
-    groq_model: str = Field(default="llama-3.1-70b-versatile", description="Groq model")
+    groq_model: str = Field(default="llama-3.1-8b-instant", description="Groq model")
+    gemini_api_key: str = Field(default="", description="Google Gemini API key")
+    gemini_model: str = Field(default="gemini-1.5-flash", description="Gemini model")
     
     # Application Configuration
     app_env: str = Field(default="development", description="Application environment")

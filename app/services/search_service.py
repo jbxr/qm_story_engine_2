@@ -1,45 +1,136 @@
 """
-Search service layer for timeline-aware queries and complex story world search.
-Handles semantic search, timeline queries, entity search with relationship context.
+Semantic Search Service
+
+Provides comprehensive semantic search functionality across scenes, entities, and knowledge snapshots
+using pgvector embeddings for similarity matching. Also includes timeline-aware queries and 
+complex story world search capabilities.
 """
 
+import logging
 import time
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from uuid import UUID
 from datetime import datetime
 
-from ..services.database import get_db
-from ..models.api_models import (
+from app.services.database import get_supabase
+from app.services.embedding_service import embedding_service
+from app.models.api_models import (
     SemanticSearchRequest, TextSearchRequest, TimelineSearchRequest,
     EntitySearchRequest, KnowledgeSearchRequest, ComplexQueryRequest,
     SearchResult, SearchResponse, TimelineSearchResult,
     RelationshipResponse
 )
 
+logger = logging.getLogger(__name__)
+
 
 class SearchService:
-    """Service for timeline-aware search and story world queries"""
+    """
+    Handles semantic search operations across the story engine database.
+    
+    Uses pgvector similarity search with OpenAI embeddings to find semantically
+    related content across scenes, entities, and knowledge snapshots.
+    Also provides timeline-aware queries and complex story world search.
+    """
     
     def __init__(self):
-        self.db = get_db()
+        self.embedding_service = embedding_service
+        
+    @property
+    def db(self):
+        """Get the database client lazily."""
+        return get_supabase()
     
     async def semantic_search(self, search_request: SemanticSearchRequest) -> SearchResponse:
         """Perform semantic search using pgvector embeddings"""
         start_time = time.time()
         
-        # TODO: Implement actual semantic search when LLM integration is ready
-        # For now, fall back to text search
-        text_results = await self._text_search_fallback(search_request.query, search_request.match_count)
-        
-        execution_time = (time.time() - start_time) * 1000
-        
-        return SearchResponse(
-            results=text_results,
-            total=len(text_results),
-            query=search_request.query,
-            search_type="semantic_fallback_text",
-            execution_time_ms=execution_time
-        )
+        try:
+            # Generate embedding for the query
+            query_embedding = await self.embedding_service.generate_embedding(search_request.query)
+            
+            # Perform unified search across all content types
+            results = await self.search_all(
+                search_request.query,
+                similarity_threshold=search_request.similarity_threshold or 0.7,
+                limit_per_type=search_request.match_count // 3 + 1
+            )
+            
+            # Convert to SearchResult format and combine results
+            search_results = []
+            
+            # Process scene blocks
+            for block in results.get('scene_blocks', []):
+                search_results.append(SearchResult(
+                    id=UUID(block['id']),
+                    content_type="scene_block",
+                    title=f"Scene Block - {block.get('block_type', 'unknown')}",
+                    content=block.get('content', '')[:200],
+                    relevance_score=block.get('similarity', 0.0),
+                    metadata={
+                        "block_type": block.get('block_type'),
+                        "scene_id": block.get('scene_id')
+                    },
+                    scene_id=UUID(block['scene_id']) if block.get('scene_id') else None
+                ))
+            
+            # Process entities
+            for entity in results.get('entities', []):
+                search_results.append(SearchResult(
+                    id=UUID(entity['id']),
+                    content_type="entity",
+                    title=entity.get('name', 'Unknown Entity'),
+                    content=entity.get('description', '')[:200],
+                    relevance_score=entity.get('similarity', 0.0),
+                    metadata={
+                        "entity_type": entity.get('entity_type')
+                    },
+                    entity_ids=[UUID(entity['id'])]
+                ))
+            
+            # Process knowledge snapshots
+            for knowledge in results.get('knowledge_snapshots', []):
+                search_results.append(SearchResult(
+                    id=UUID(knowledge['id']),
+                    content_type="knowledge",
+                    title=f"Knowledge - {knowledge.get('entity_name', 'Unknown')}",
+                    content=str(knowledge.get('knowledge_data', ''))[:200],
+                    relevance_score=knowledge.get('similarity', 0.0),
+                    metadata={
+                        "entity_id": knowledge.get('entity_id'),
+                        "timestamp": knowledge.get('timestamp')
+                    },
+                    entity_ids=[UUID(knowledge['entity_id'])] if knowledge.get('entity_id') else []
+                ))
+            
+            # Sort by relevance score and limit results
+            search_results.sort(key=lambda x: x.relevance_score, reverse=True)
+            search_results = search_results[:search_request.match_count]
+            
+            execution_time = (time.time() - start_time) * 1000
+            
+            return SearchResponse(
+                results=search_results,
+                total=len(search_results),
+                query=search_request.query,
+                search_type="semantic_search",
+                execution_time_ms=execution_time
+            )
+            
+        except Exception as e:
+            logger.error(f"Semantic search failed, falling back to text search: {str(e)}")
+            # Fall back to text search if semantic search fails
+            text_results = await self._text_search_fallback(search_request.query, search_request.match_count)
+            
+            execution_time = (time.time() - start_time) * 1000
+            
+            return SearchResponse(
+                results=text_results,
+                total=len(text_results),
+                query=search_request.query,
+                search_type="semantic_fallback_text",
+                execution_time_ms=execution_time
+            )
     
     async def text_search(self, search_request: TextSearchRequest) -> SearchResponse:
         """Perform full-text search across content"""
@@ -562,3 +653,384 @@ class SearchService:
                 ))
         
         return results[:limit]
+    
+    # =============================================================================
+    # SEMANTIC SEARCH METHODS (Phase 4)
+    # =============================================================================
+    
+    async def search_scene_blocks(
+        self,
+        query: str,
+        similarity_threshold: float = 0.7,
+        limit: int = 10,
+        scene_id: Optional[UUID] = None,
+        block_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search scene blocks using semantic similarity.
+        
+        Args:
+            query: Search query text
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            limit: Maximum number of results
+            scene_id: Optional filter by specific scene
+            block_type: Optional filter by block type (prose, dialogue, milestone)
+            
+        Returns:
+            List of matching scene blocks with similarity scores
+        """
+        try:
+            # Generate embedding for the query
+            query_embedding = await self.embedding_service.generate_embedding(query)
+            
+            # Build the RPC call with filters
+            rpc_params = {
+                'query_embedding': query_embedding,
+                'match_threshold': similarity_threshold,
+                'match_count': limit
+            }
+            
+            if scene_id:
+                rpc_params['filter_scene_id'] = str(scene_id)
+            if block_type:
+                rpc_params['filter_block_type'] = block_type
+                
+            # Call the database search function
+            response = self.db.rpc('match_scene_blocks', rpc_params).execute()
+            
+            if response.data:
+                logger.info(f"Found {len(response.data)} scene blocks for query: {query[:50]}...")
+                return response.data
+            else:
+                logger.info(f"No scene blocks found for query: {query[:50]}...")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error searching scene blocks: {str(e)}")
+            raise
+    
+    async def search_entities(
+        self,
+        query: str,
+        similarity_threshold: float = 0.7,
+        limit: int = 10,
+        entity_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search entities using semantic similarity.
+        
+        Args:
+            query: Search query text
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            limit: Maximum number of results
+            entity_type: Optional filter by entity type (character, location, artifact)
+            
+        Returns:
+            List of matching entities with similarity scores
+        """
+        try:
+            # Generate embedding for the query
+            query_embedding = await self.embedding_service.generate_embedding(query)
+            
+            # Build the RPC call with filters
+            rpc_params = {
+                'query_embedding': query_embedding,
+                'match_threshold': similarity_threshold,
+                'match_count': limit
+            }
+            
+            if entity_type:
+                rpc_params['filter_entity_type'] = entity_type
+                
+            # Call the database search function
+            response = self.db.rpc('search_entities_by_embedding', rpc_params).execute()
+            
+            if response.data:
+                logger.info(f"Found {len(response.data)} entities for query: {query[:50]}...")
+                return response.data
+            else:
+                logger.info(f"No entities found for query: {query[:50]}...")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error searching entities: {str(e)}")
+            raise
+    
+    async def search_knowledge_snapshots(
+        self,
+        query: str,
+        similarity_threshold: float = 0.7,
+        limit: int = 10,
+        character_id: Optional[UUID] = None,
+        timeline_start: Optional[int] = None,
+        timeline_end: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search knowledge snapshots using semantic similarity.
+        
+        Args:
+            query: Search query text
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            limit: Maximum number of results
+            character_id: Optional filter by specific character
+            timeline_start: Optional filter by timeline position (inclusive)
+            timeline_end: Optional filter by timeline position (inclusive)
+            
+        Returns:
+            List of matching knowledge snapshots with similarity scores
+        """
+        try:
+            # Generate embedding for the query
+            query_embedding = await self.embedding_service.generate_embedding(query)
+            
+            # Build the RPC call with filters
+            rpc_params = {
+                'query_embedding': query_embedding,
+                'match_threshold': similarity_threshold,
+                'match_count': limit
+            }
+            
+            if character_id:
+                rpc_params['filter_character_id'] = str(character_id)
+            if timeline_start is not None:
+                rpc_params['filter_timeline_start'] = timeline_start
+            if timeline_end is not None:
+                rpc_params['filter_timeline_end'] = timeline_end
+                
+            # Call the database search function
+            response = self.db.rpc('search_knowledge_by_embedding', rpc_params).execute()
+            
+            if response.data:
+                logger.info(f"Found {len(response.data)} knowledge snapshots for query: {query[:50]}...")
+                return response.data
+            else:
+                logger.info(f"No knowledge snapshots found for query: {query[:50]}...")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error searching knowledge snapshots: {str(e)}")
+            raise
+    
+    async def search_all(
+        self,
+        query: str,
+        similarity_threshold: float = 0.7,
+        limit_per_type: int = 5
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Unified search across all content types.
+        
+        Args:
+            query: Search query text
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            limit_per_type: Maximum results per content type
+            
+        Returns:
+            Dictionary with results grouped by content type:
+            {
+                'scene_blocks': [...],
+                'entities': [...],
+                'knowledge_snapshots': [...]
+            }
+        """
+        try:
+            logger.info(f"Performing unified search for: {query[:50]}...")
+            
+            # Search all content types in parallel
+            scene_blocks_task = self.search_scene_blocks(
+                query, similarity_threshold, limit_per_type
+            )
+            entities_task = self.search_entities(
+                query, similarity_threshold, limit_per_type
+            )
+            knowledge_task = self.search_knowledge_snapshots(
+                query, similarity_threshold, limit_per_type
+            )
+            
+            # Wait for all searches to complete
+            scene_blocks = await scene_blocks_task
+            entities = await entities_task
+            knowledge_snapshots = await knowledge_task
+            
+            results = {
+                'scene_blocks': scene_blocks,
+                'entities': entities,
+                'knowledge_snapshots': knowledge_snapshots
+            }
+            
+            total_results = len(scene_blocks) + len(entities) + len(knowledge_snapshots)
+            logger.info(f"Unified search returned {total_results} total results")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in unified search: {str(e)}")
+            raise
+    
+    async def find_similar_content(
+        self,
+        content_type: str,
+        content_id: UUID,
+        similarity_threshold: float = 0.7,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Find content similar to a specific item.
+        
+        Args:
+            content_type: Type of content ('scene_block', 'entity', 'knowledge_snapshot')
+            content_id: ID of the reference content
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            limit: Maximum number of results
+            
+        Returns:
+            List of similar content items with similarity scores
+        """
+        try:
+            # Get the embedding of the reference content
+            if content_type == 'scene_block':
+                response = self.db.table('scene_blocks').select('content, content_embedding').eq('id', str(content_id)).execute()
+                if not response.data:
+                    raise ValueError(f"Scene block {content_id} not found")
+                
+                reference_text = response.data[0]['content']
+                reference_embedding = response.data[0]['content_embedding']
+                
+            elif content_type == 'entity':
+                response = self.db.table('entities').select('name, description, description_embedding').eq('id', str(content_id)).execute()
+                if not response.data:
+                    raise ValueError(f"Entity {content_id} not found")
+                
+                entity_data = response.data[0]
+                reference_text = f"{entity_data['name']}: {entity_data['description']}"
+                reference_embedding = entity_data['description_embedding']
+                
+            elif content_type == 'knowledge_snapshot':
+                response = self.db.table('knowledge_snapshots').select('knowledge_data, knowledge_embedding').eq('id', str(content_id)).execute()
+                if not response.data:
+                    raise ValueError(f"Knowledge snapshot {content_id} not found")
+                
+                reference_text = str(response.data[0]['knowledge_data'])
+                reference_embedding = response.data[0]['knowledge_embedding']
+                
+            else:
+                raise ValueError(f"Invalid content type: {content_type}")
+            
+            # If no embedding exists, generate one
+            if not reference_embedding:
+                reference_embedding = await self.embedding_service.generate_embedding(reference_text)
+            
+            # Search for similar content across all types
+            rpc_params = {
+                'query_embedding': reference_embedding,
+                'match_threshold': similarity_threshold,
+                'match_count': limit
+            }
+            
+            # Search all content types
+            similar_blocks = self.db.rpc('search_scene_blocks', rpc_params).execute()
+            similar_entities = self.db.rpc('search_entities', rpc_params).execute()
+            similar_knowledge = self.db.rpc('search_knowledge_snapshots', rpc_params).execute()
+            
+            # Combine and sort results
+            all_results = []
+            
+            if similar_blocks.data:
+                for item in similar_blocks.data:
+                    item['content_type'] = 'scene_block'
+                    all_results.append(item)
+                    
+            if similar_entities.data:
+                for item in similar_entities.data:
+                    item['content_type'] = 'entity'
+                    all_results.append(item)
+                    
+            if similar_knowledge.data:
+                for item in similar_knowledge.data:
+                    item['content_type'] = 'knowledge_snapshot'
+                    all_results.append(item)
+            
+            # Remove the reference item itself and sort by similarity
+            filtered_results = [
+                item for item in all_results 
+                if item.get('id') != str(content_id)
+            ]
+            
+            # Sort by similarity score (descending)
+            sorted_results = sorted(
+                filtered_results,
+                key=lambda x: x.get('similarity', 0),
+                reverse=True
+            )[:limit]
+            
+            logger.info(f"Found {len(sorted_results)} similar items for {content_type} {content_id}")
+            return sorted_results
+            
+        except Exception as e:
+            logger.error(f"Error finding similar content: {str(e)}")
+            raise
+    
+    async def get_content_recommendations(
+        self,
+        scene_id: UUID,
+        recommendation_type: str = 'all',
+        limit: int = 5
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get content recommendations for a scene based on existing content.
+        
+        Args:
+            scene_id: ID of the scene to get recommendations for
+            recommendation_type: Type of recommendations ('entities', 'knowledge', 'all')
+            limit: Maximum recommendations per type
+            
+        Returns:
+            Dictionary with recommended content by type
+        """
+        try:
+            # Get scene content for context
+            scene_response = self.db.table('scenes').select('title, summary').eq('id', str(scene_id)).execute()
+            if not scene_response.data:
+                raise ValueError(f"Scene {scene_id} not found")
+            
+            scene_data = scene_response.data[0]
+            scene_context = f"{scene_data['title']}: {scene_data['summary']}"
+            
+            # Get scene blocks for additional context
+            blocks_response = self.db.table('scene_blocks').select('content').eq('scene_id', str(scene_id)).execute()
+            if blocks_response.data:
+                block_content = " ".join([block['content'] for block in blocks_response.data])
+                scene_context += f" {block_content}"
+            
+            recommendations = {}
+            
+            if recommendation_type in ['entities', 'all']:
+                # Find relevant entities
+                relevant_entities = await self.search_entities(
+                    scene_context,
+                    similarity_threshold=0.6,
+                    limit=limit
+                )
+                recommendations['entities'] = relevant_entities
+            
+            if recommendation_type in ['knowledge', 'all']:
+                # Find relevant knowledge snapshots
+                relevant_knowledge = await self.search_knowledge_snapshots(
+                    scene_context,
+                    similarity_threshold=0.6,
+                    limit=limit
+                )
+                recommendations['knowledge_snapshots'] = relevant_knowledge
+            
+            total_recommendations = sum(len(recs) for recs in recommendations.values())
+            logger.info(f"Generated {total_recommendations} recommendations for scene {scene_id}")
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error getting content recommendations: {str(e)}")
+            raise
+
+
+# Global search service instance
+search_service = SearchService()

@@ -1,15 +1,18 @@
-<section id="scenes-list">
+<!-- Scenes List Page (no editor sidebar) -->
+<section id="scenes-header">
     <header>
         <hgroup>
             <h1>Scenes</h1>
             <p>Manage and organize your story scenes in chronological order.</p>
         </hgroup>
         <div>
-            <small id="scenes-count">0 scenes</small>
             <button id="create-scene-btn">+ New Scene</button>
+            <small id="scenes-count">0 scenes</small>
         </div>
     </header>
-
+    <hr />
+</section>
+<section id="scenes-management">
     <!-- Scenes Filters -->
     <form>
         <fieldset role="group">
@@ -18,14 +21,14 @@
                 <option value="created_at">Sort by Created</option>
                 <option value="title">Sort by Title</option>
             </select>
-            
+
             <select id="location-filter" aria-label="Filter by location">
                 <option value="">All Locations</option>
                 <!-- Populated dynamically -->
             </select>
-            
+
             <input type="search" id="scenes-search-input" placeholder="Search scenes..." aria-label="Search scenes" />
-            
+
             <button type="button" id="clear-scenes-filters" role="button">Clear</button>
         </fieldset>
     </form>

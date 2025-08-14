@@ -216,6 +216,23 @@ class PageLoader {
             // addProseBtn.addEventListener('click', () => window.storyEngine.addProseBlock());
         }
         
+        // NEW: Load the selected (pending) scene into the editor
+        if (window.storyEngine) {
+            const pendingId = window.storyEngine.pendingSceneId;
+            if (pendingId) {
+                window.storyEngine.loadSceneIntoEditor(pendingId);
+                // Clear pending id to avoid reloading on revisit unless explicitly set again
+                window.storyEngine.pendingSceneId = null;
+            } else if (window.storyEngine.scenes && window.storyEngine.scenes.length > 0) {
+                // Optional: auto-load first scene for faster access
+                window.storyEngine.loadSceneIntoEditor(window.storyEngine.scenes[0].id);
+            } else {
+                console.warn('Scene editor loaded but no scenes available yet.');
+            }
+        } else {
+            console.warn('StoryEngine not ready when initializing scene editor page.');
+        }
+
         console.log('✏️ Scene editor page initialized');
     }
 

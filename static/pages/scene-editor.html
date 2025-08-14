@@ -1,52 +1,74 @@
-<section id="scene-editor">
-    <!-- Breadcrumb navigation -->
-    <nav aria-label="breadcrumb">
-        <ul>
-            <li><a href="#" onclick="window.pageLoader?.loadPage('scenes')">Scenes</a></li>
-            <li id="scene-breadcrumb-title">Scene Title</li>
-        </ul>
-    </nav>
-    <header>
-        <hgroup>
-            <h1 id="scene-title" contenteditable="true">Untitled Scene</h1>
-            <p>Day <span id="scene-timestamp">1</span> • ID: <span id="scene-id">---</span></p>
-        </hgroup>
-    </header>
-    
-    <form>
-        <fieldset>
-            <legend>Scene Details</legend>
-            <label for="scene-location">Location:
-                <select id="scene-location">
-                    <option value="">Select location...</option>
-                </select>
-            </label>
-            <label for="scene-previous">Previous scene:
-                <select id="scene-previous">
-                    <option value="">No previous scene</option>
-                </select>
-            </label>
-            <label for="scene-next">Next scene:
-                <select id="scene-next">
-                    <option value="">No next scene</option>
-                </select>
-            </label>
-        </fieldset>
-    </form>
+<section id="scene-editor" class="scene-editor-layout">
+    <div class="editor-main">
+      <header>
+          <hgroup>
+              <h1 id="scene-title" contenteditable="true">Untitled Scene</h1>
+              <p>Day <span id="scene-timestamp">1</span> • ID: <span id="scene-id">---</span></p>
+          </hgroup>
+      </header>
 
-    <div id="linked-entities">
-        <!-- Entity tags will be populated here -->
+      <div id="linked-entities"><!-- Entity tags populate here --></div>
+
+      <!-- Scene content blocks -->
+      <div id="scene-content" class="scene-blocks"><!-- blocks populate here --></div>
     </div>
-
-    <!-- Scene content blocks -->
-    <main id="scene-content">
-        <!-- Scene blocks will be populated here -->
-    </main>
-
-    <!-- Add block controls -->
-    <footer>
-        <button id="add-prose" type="button">+ Prose</button>
-        <button id="add-dialogue" type="button" role="button">+ Dialogue</button>
-        <button id="add-milestone" type="button" role="button">+ Milestone</button>
-    </footer>
+    <aside class="editor-sidebar" id="scene-sidebar">
+        <nav id="scene-inline-nav" aria-label="Scene navigation">
+            <ul style="display:flex; gap:0.5rem; list-style:none; padding:0; margin:0 0 0.75rem 0; font-size:0.85rem;">
+                <li><a href="#" id="scene-nav-prev" aria-label="Previous scene">&lt; Previous</a></li>
+                <li><a href="#" id="scene-nav-list" aria-label="Scenes list">List</a></li>
+                <li><a href="#" id="scene-nav-next" aria-label="Next scene">Next &gt;</a></li>
+            </ul>
+        </nav>
+        <form id="scene-meta-form">
+            <fieldset>
+                <legend>Scene Metadata</legend>
+                <label for="scene-location">Location
+                    <select id="scene-location">
+                        <option value="">Select location...</option>
+                    </select>
+                </label>
+                <label for="scene-previous">Previous Scene
+                    <select id="scene-previous">
+                        <option value="">None</option>
+                    </select>
+                </label>
+                <label for="scene-next">Next Scene
+                    <select id="scene-next">
+                        <option value="">None</option>
+                    </select>
+                </label>
+            </fieldset>
+        </form>
+        <section aria-labelledby="add-blocks-heading">
+            <header><h3 id="add-blocks-heading">Add Blocks</h3></header>
+            <div class="block-add-toolbar" style="margin-top:0.25rem;">
+                <button id="add-prose" type="button">+ Prose</button>
+                <button id="add-dialogue" type="button" role="button">+ Dialogue</button>
+                <button id="add-milestone" type="button" role="button">+ Milestone</button>
+            </div>
+        </section>
+        <section id="continuity-analysis" aria-labelledby="continuity-heading">
+            <header><h3 id="continuity-heading">Continuity</h3></header>
+            <div class="continuity-body">
+                <p><span aria-busy="true">Run analysis...</span></p>
+            </div>
+            <footer>
+                <button id="run-continuity" type="button">Analyze</button>
+            </footer>
+        </section>
+        <section id="world-query" aria-labelledby="world-query-heading">
+            <header><h3 id="world-query-heading">World Query</h3></header>
+            <div class="world-query-body">
+                <form id="world-query-form">
+                    <input type="search" id="world-query-input" placeholder="Ask world..." aria-label="Query world knowledge" />
+                </form>
+                <div id="world-query-results"><small>No queries yet.</small></div>
+            </div>
+        </section>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+            <button id="save-scene-btn" type="button" class="primary">Save Changes</button>
+            <small id="scene-save-status" style="align-self:center; opacity:0.8;"></small>
+        </div>
+    </aside>
 </section>

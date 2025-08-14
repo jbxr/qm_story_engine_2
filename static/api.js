@@ -80,19 +80,19 @@ class ApiClient {
     }
 
     async createSceneBlock(sceneId, blockData) {
-        return this.post(`/api/scenes/${sceneId}/blocks`, blockData);
+        return this.post(`/api/v1/scenes/${sceneId}/blocks`, blockData);
     }
 
     async updateSceneBlock(sceneId, blockId, blockData) {
-        return this.put(`/api/scenes/${sceneId}/blocks/${blockId}`, blockData);
+        return this.put(`/api/v1/scenes/${sceneId}/blocks/${blockId}`, blockData);
     }
 
     async deleteSceneBlock(sceneId, blockId) {
-        return this.delete(`/api/scenes/${sceneId}/blocks/${blockId}`);
+        return this.delete(`/api/v1/scenes/${sceneId}/blocks/${blockId}`);
     }
 
     async reorderSceneBlocks(sceneId, blockIds) {
-        return this.put(`/api/scenes/${sceneId}/blocks/reorder`, { block_ids: blockIds });
+        return this.put(`/api/v1/scenes/${sceneId}/blocks/reorder`, { block_ids: blockIds });
     }
 
     // =================================================================

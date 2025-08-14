@@ -12,6 +12,7 @@ from ..models.api_models import (
     SearchResponse, TimelineSearchResult
 )
 from ..services.search_service import SearchService
+from ..services.search_service import search_service
 
 router = APIRouter()
 
@@ -199,3 +200,243 @@ async def get_entity_types():
         return entity_types
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get entity types: {str(e)}")
+
+
+# =============================
+# PHASE 4: Semantic Search Endpoints
+# =============================
+
+@router.post("/semantic/scene-blocks")
+async def semantic_search_scene_blocks(
+    query: str,
+    scene_id: str = None,
+    block_type: str = None,
+    similarity_threshold: float = 0.5,
+    limit: int = 10
+):
+    """Search scene blocks using semantic similarity."""
+    try:
+        from uuid import UUID
+        scene_uuid = UUID(scene_id) if scene_id else None
+        
+        results = await search_service.search_scene_blocks(
+            query=query,
+            scene_id=scene_uuid,
+            block_type=block_type,
+            similarity_threshold=similarity_threshold,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Semantic scene block search failed: {str(e)}")
+
+
+@router.post("/semantic/entities")
+async def semantic_search_entities(
+    query: str,
+    entity_type: str = None,
+    similarity_threshold: float = 0.5,
+    limit: int = 10
+):
+    """Search entities using semantic similarity."""
+    try:
+        results = await search_service.search_entities(
+            query=query,
+            entity_type=entity_type,
+            similarity_threshold=similarity_threshold,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Semantic entity search failed: {str(e)}")
+
+
+@router.post("/semantic/knowledge")
+async def semantic_search_knowledge(
+    query: str,
+    character_id: str = None,
+    timeline_start: int = None,
+    timeline_end: int = None,
+    similarity_threshold: float = 0.5,
+    limit: int = 10
+):
+    """Search knowledge snapshots using semantic similarity."""
+    try:
+        from uuid import UUID
+        character_uuid = UUID(character_id) if character_id else None
+        
+        results = await search_service.search_knowledge_snapshots(
+            query=query,
+            character_id=character_uuid,
+            timeline_start=timeline_start,
+            timeline_end=timeline_end,
+            similarity_threshold=similarity_threshold,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Semantic knowledge search failed: {str(e)}")
+
+
+@router.post("/semantic/all")
+async def semantic_search_all(
+    query: str,
+    include_scenes: bool = True,
+    include_entities: bool = True,
+    include_knowledge: bool = True,
+    similarity_threshold: float = 0.5,
+    limit_per_type: int = 5
+):
+    """Search across all content types using semantic similarity."""
+    try:
+        results = await search_service.search_all(
+            query=query,
+            include_scenes=include_scenes,
+            include_entities=include_entities,
+            include_knowledge=include_knowledge,
+            similarity_threshold=similarity_threshold,
+            limit_per_type=limit_per_type
+        )
+        
+        total_results = sum(len(results[key]) for key in results)
+        
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "total_count": total_results,
+            "counts_by_type": {
+                key: len(results[key]) for key in results
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Universal semantic search failed: {str(e)}")
+
+
+@router.post("/similar/{content_type}/{content_id}")
+async def find_similar_content(
+    content_type: str,
+    content_id: str,
+    similarity_threshold: float = 0.7,
+    limit: int = 5
+):
+    """Find content similar to a specific piece of content."""
+    try:
+        from uuid import UUID
+        
+        if content_type not in ["scene_block", "entity", "knowledge_snapshot"]:
+            raise HTTPException(status_code=400, detail="Invalid content type")
+            
+        content_uuid = UUID(content_id)
+        
+        results = await search_service.find_similar_content(
+            content_type=content_type,
+            content_id=content_uuid,
+            similarity_threshold=similarity_threshold,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "reference": {
+                "type": content_type,
+                "id": content_id
+            },
+            "similar_content": results,
+            "count": len(results)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Similar content search failed: {str(e)}")
+
+
+@router.post("/embeddings/generate")
+async def generate_content_embeddings(
+    content_type: str = "all",
+    batch_size: int = 50
+):
+    """Generate embeddings for existing content (admin endpoint)."""
+    try:
+        from ..services.embedding_service import embedding_service
+        from ..services.database import supabase
+        
+        if content_type not in ["all", "scene_blocks", "entities", "knowledge_snapshots"]:
+            raise HTTPException(status_code=400, detail="Invalid content type")
+            
+        processed_count = 0
+        errors = []
+        
+        # Process scene blocks
+        if content_type in ["all", "scene_blocks"]:
+            try:
+                response = await supabase.table("scene_blocks").select("id, content, summary, lines").execute()
+                for block in response.data or []:
+                    try:
+                        await embedding_service.update_entity_embedding(
+                            block["id"], "scene_block", block
+                        )
+                        processed_count += 1
+                    except Exception as e:
+                        errors.append(f"Scene block {block['id']}: {str(e)}")
+            except Exception as e:
+                errors.append(f"Scene blocks processing: {str(e)}")
+                
+        # Process entities
+        if content_type in ["all", "entities"]:
+            try:
+                response = await supabase.table("entities").select("id, name, description, metadata").execute()
+                for entity in response.data or []:
+                    try:
+                        await embedding_service.update_entity_embedding(
+                            entity["id"], "entity", entity
+                        )
+                        processed_count += 1
+                    except Exception as e:
+                        errors.append(f"Entity {entity['id']}: {str(e)}")
+            except Exception as e:
+                errors.append(f"Entities processing: {str(e)}")
+                
+        # Process knowledge snapshots
+        if content_type in ["all", "knowledge_snapshots"]:
+            try:
+                response = await supabase.table("knowledge_snapshots").select("id, knowledge_state").execute()
+                for snapshot in response.data or []:
+                    try:
+                        await embedding_service.update_entity_embedding(
+                            snapshot["id"], "knowledge_snapshot", snapshot
+                        )
+                        processed_count += 1
+                    except Exception as e:
+                        errors.append(f"Knowledge snapshot {snapshot['id']}: {str(e)}")
+            except Exception as e:
+                errors.append(f"Knowledge snapshots processing: {str(e)}")
+        
+        return {
+            "success": True,
+            "processed_count": processed_count,
+            "content_type": content_type,
+            "errors": errors[:10],  # Limit error list
+            "total_errors": len(errors)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")

@@ -9,6 +9,8 @@ class StoryEngine {
         this.config = null;
         this.api = new ApiClient();
         this.scenes = [];
+        this.entitiesPreview = []; // restored: holds lightweight entity list
+        this.pendingSceneId = null; // Used when navigating to scene-editor page
         this.init();
     }
 
@@ -119,51 +121,7 @@ class StoryEngine {
         this.renderScenesGrid(this.scenes);
     }
 
-    async editScene(sceneId) {
-        console.log(`✏️ Editing scene: ${sceneId}`);
-        
-        // Find the scene data for the breadcrumb
-        const scene = this.scenes.find(s => s.id === sceneId);
-        const sceneTitle = scene ? scene.title || 'Untitled Scene' : 'Scene';
-        
-        // Update breadcrumb
-        const breadcrumbTitle = document.getElementById('scene-breadcrumb-title');
-        if (breadcrumbTitle) {
-            breadcrumbTitle.textContent = sceneTitle;
-        }
-        
-        // Switch to scene editor
-        if (window.pageLoader) {
-            window.pageLoader.loadPage('scene-editor');
-        }
-        
-        // TODO: Load scene blocks and full scene data
-    }
-
-    async deleteScene(sceneId) {
-        if (!confirm('Are you sure you want to delete this scene?')) return;
-        
-        try {
-            console.log(`🗑️ Deleting scene: ${sceneId}`);
-            
-            const { error } = await this.supabase
-                .from('scenes')
-                .delete()
-                .eq('id', sceneId);
-
-            if (error) throw error;
-
-            // Refresh scenes list
-            await this.loadScenes();
-            this.updateScenesCount();
-            
-            console.log('✅ Scene deleted successfully');
-        } catch (error) {
-            console.error('❌ Failed to delete scene:', error);
-            this.showError('Failed to delete scene: ' + error.message);
-        }
-    }
-
+    // Restored entity loading methods
     async loadEntitiesData() {
         try {
             const { data, error } = await this.supabase
@@ -171,9 +129,7 @@ class StoryEngine {
                 .select('id, name, entity_type, description')
                 .order('name')
                 .limit(10);
-
             if (error) throw error;
-
             this.entitiesPreview = data || [];
             console.log('✅ Entities data loaded:', this.entitiesPreview.length);
         } catch (error) {
@@ -186,60 +142,167 @@ class StoryEngine {
         this.renderEntitiesList(this.entitiesPreview);
     }
 
+    async editScene(sceneId) {
+        // Navigate to scene editor (page-loader will call initialization hooks)
+        this.pendingSceneId = sceneId;
+        if (window.pageLoader) {
+            window.pageLoader.loadPage('scene-editor');
+        } else {
+            console.warn('pageLoader not ready; fallback to legacy selectScene');
+            await this.selectScene(sceneId);
+        }
+    }
 
-    async createScene() {
+    // Load a scene into the editor page after it is inserted into DOM
+    async loadSceneIntoEditor(sceneId) {
         try {
-            const title = prompt('Scene title:');
-            if (!title) return;
-
-            const { data, error } = await this.supabase
+            console.log('📝 Loading scene into editor:', sceneId);
+            // Ensure scenes list is available
+            if (!this.scenes || this.scenes.length === 0) {
+                await this.loadScenesData();
+            }
+            // Fetch full scene record
+            const { data: scene, error } = await this.supabase
                 .from('scenes')
-                .insert([
-                    {
-                        title: title,
-                        timestamp: 1000
-                    }
-                ])
-                .select()
+                .select('*')
+                .eq('id', sceneId)
                 .single();
-
             if (error) throw error;
-
-            console.log('✅ Scene created via Supabase:', data);
-            await this.loadScenes(); // Refresh list
-        } catch (error) {
-            console.error('Failed to create scene:', error);
-            alert('Failed to create scene: ' + error.message);
+            // Fetch blocks (FastAPI) & entities (placeholder)
+            let blocks = [];
+            try {
+                const blocksResp = await this.api.getSceneBlocks(sceneId);
+                blocks = blocksResp.data?.blocks || [];
+            } catch (e) {
+                console.warn('Blocks load failed (placeholder endpoint?)', e);
+            }
+            let entities = [];
+            try {
+                const entsResp = await this.api.getSceneEntities(sceneId);
+                entities = entsResp.data?.entities || [];
+            } catch (e) {
+                console.warn('Entities load failed (placeholder endpoint?)', e);
+            }
+            // Render core content
+            this.renderScene(scene, blocks, entities);
+            // Breadcrumb
+            const crumb = document.getElementById('scene-breadcrumb-title');
+            if (crumb) crumb.textContent = scene.title || 'Untitled Scene';
+            // Populate metadata selects
+            this.populateSceneMetadata(sceneId, scene);
+            // Attach handlers (idempotent)
+            this.attachSceneEditorHandlers();
+        } catch (err) {
+            console.error('Failed to load scene into editor:', err);
+            this.updateElement('scene-content', `<p class="error">Failed to load scene: ${this.escapeHtml(err.message)}</p>`);
         }
     }
 
-    async createEntity() {
-        try {
-            const name = prompt('Entity name:');
-            if (!name) return;
-
-            const { data, error } = await this.supabase
-                .from('entities')
-                .insert([
-                    {
-                        name: name,
-                        entity_type: 'character',
-                        description: 'New entity created from frontend'
-                    }
-                ])
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            console.log('✅ Entity created via Supabase:', data);
-            await this.loadEntities(); // Refresh list
-        } catch (error) {
-            console.error('Failed to create entity:', error);
-            alert('Failed to create entity: ' + error.message);
+    populateSceneMetadata(sceneId, scene) {
+        // Location select (using existing scenes' location_ids as provisional list)
+        const locSelect = document.getElementById('scene-location');
+        if (locSelect) {
+            const uniqueLocations = Array.from(new Set(this.scenes.map(s => s.location_id).filter(Boolean)));
+            locSelect.innerHTML = '<option value="">Select location...</option>' +
+                uniqueLocations.map(loc => `<option value="${this.escapeHtml(loc)}">${this.escapeHtml(loc)}</option>`).join('');
+            if (scene.location_id) locSelect.value = scene.location_id;
+        }
+        // Previous / Next selects
+        const prevSelect = document.getElementById('scene-previous');
+        const nextSelect = document.getElementById('scene-next');
+        if (prevSelect && nextSelect) {
+            const index = this.scenes.findIndex(s => s.id === sceneId);
+            const before = this.scenes.slice(0, index);
+            const after = this.scenes.slice(index + 1);
+            prevSelect.innerHTML = '<option value="">None</option>' + before.map(s => `<option value="${s.id}">${this.escapeHtml(s.title || 'Untitled')}</option>`).join('');
+            nextSelect.innerHTML = '<option value="">None</option>' + after.map(s => `<option value="${s.id}">${this.escapeHtml(s.title || 'Untitled')}</option>`).join('');
+            // Preselect immediate neighbors if exist
+            if (before.length) prevSelect.value = before[before.length - 1].id;
+            if (after.length) nextSelect.value = after[0].id;
         }
     }
 
+    attachSceneEditorHandlers() {
+        if (this._sceneEditorHandlersAttached) return;
+        // Continuity analysis
+        document.getElementById('run-continuity')?.addEventListener('click', () => this.runContinuityAnalysis());
+        // World query form
+        const wqForm = document.getElementById('world-query-form');
+        const wqInput = document.getElementById('world-query-input');
+        if (wqForm && wqInput) {
+            wqForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const q = wqInput.value.trim();
+                if (!q) return;
+                this.queryWorld(q);
+                wqInput.value = '';
+            });
+        }
+        // Add block buttons
+        document.getElementById('add-prose')?.addEventListener('click', () => this.addBlock('prose'));
+        document.getElementById('add-dialogue')?.addEventListener('click', () => this.addBlock('dialogue'));
+        document.getElementById('add-milestone')?.addEventListener('click', () => this.addBlock('milestone'));
+        // Save button
+        document.getElementById('save-scene-btn')?.addEventListener('click', () => this.saveSceneChanges());
+        // Scene title autosave
+        const titleEl = document.getElementById('scene-title');
+        if (titleEl) {
+            titleEl.addEventListener('input', () => {
+                this.markSceneDirty();
+                this.debounceSceneSave();
+            });
+        }
+        // Location change
+        document.getElementById('scene-location')?.addEventListener('change', () => {
+            this.markSceneDirty();
+            this.saveSceneChanges();
+        });
+        // Navigation links
+        document.getElementById('scene-nav-list')?.addEventListener('click', e => { e.preventDefault(); window.pageLoader?.loadPage('scenes'); });
+        document.getElementById('scene-nav-prev')?.addEventListener('click', e => { e.preventDefault(); this.navigateRelativeScene(-1); });
+        document.getElementById('scene-nav-next')?.addEventListener('click', e => { e.preventDefault(); this.navigateRelativeScene(1); });
+        // Delegate block content autosave
+        document.getElementById('scene-content')?.addEventListener('input', (e) => {
+            const target = e.target;
+            if (target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && target.type === 'text')) {
+                const details = target.closest('details[data-block-id]');
+                if (details) {
+                    const blockId = details.getAttribute('data-block-id');
+                    this.markBlockDirty(blockId);
+                    this.debounceBlockSave(blockId, details);
+                }
+            }
+        });
+        // Debouncers
+        this._debouncers = {};
+        this._sceneEditorHandlersAttached = true;
+    }
+
+    runContinuityAnalysis() {
+        const container = document.querySelector('#continuity-analysis .continuity-body');
+        if (!container) return;
+        container.innerHTML = '<p><span aria-busy="true">Analyzing continuity...</span></p>';
+        const sceneIdEl = document.getElementById('scene-id');
+        const sceneId = sceneIdEl ? sceneIdEl.textContent : '';
+        // Placeholder async simulation
+        setTimeout(() => {
+            container.innerHTML = `
+                <p><strong>Summary:</strong> No inconsistencies detected.</p>
+                <p><small>Scene ${this.escapeHtml(sceneId)} passes baseline checks (placeholder).</small></p>`;
+        }, 800);
+    }
+
+    queryWorld(query) {
+        const results = document.getElementById('world-query-results');
+        if (!results) return;
+        const sceneId = document.getElementById('scene-id')?.textContent || '';
+        const ts = new Date().toLocaleTimeString();
+        const placeholderAnswer = `Stub answer for "${this.escapeHtml(query)}" (integrate /api/search or knowledge soon).`;
+        const item = document.createElement('div');
+        item.className = 'query-item';
+        item.innerHTML = `<p><strong>${ts}</strong> <mark>Q:</mark> ${this.escapeHtml(query)}</p><p><mark>A:</mark> ${placeholderAnswer}</p>`;
+        results.prepend(item);
+    }
 
     // =================================================================
     // FASTAPI COMMAND OPERATIONS (Tier 1 & 2)
@@ -396,8 +459,8 @@ Benefits: Business logic, validation, complex operations`;
     createSceneRow(scene) {
         const row = document.createElement('tr');
         row.dataset.id = scene.id;
-        row.onclick = () => window.storyEngine.editScene(scene.id);
-        
+        row.onclick = () => this.editScene(scene.id);
+
         // Timeline cell
         const timestampCell = document.createElement('td');
         timestampCell.textContent = scene.timestamp ? `Day ${scene.timestamp}` : 'No timestamp';
@@ -623,6 +686,7 @@ Benefits: Business logic, validation, complex operations`;
     }
 
     renderScene(scene, blocks, entities) {
+        this.currentSceneId = scene.id; // track current
         // Update scene header
         this.updateElement('scene-title', scene.title || 'Untitled Scene');
         this.updateElement('scene-timestamp', scene.timestamp || '1');
@@ -634,7 +698,25 @@ Benefits: Business logic, validation, complex operations`;
         // Render scene blocks
         this.renderSceneBlocks(blocks);
         
+        this.updateInlineNav();
+
         console.log('✅ Scene rendered successfully');
+    }
+
+    // Inline navigation update
+    updateInlineNav() {
+        const idx = this.scenes.findIndex(s => s.id === this.currentSceneId);
+        const prevLink = document.getElementById('scene-nav-prev');
+        const nextLink = document.getElementById('scene-nav-next');
+        if (prevLink) prevLink.classList.toggle('disabled', idx <= 0);
+        if (nextLink) nextLink.classList.toggle('disabled', idx < 0 || idx >= this.scenes.length - 1);
+    }
+
+    navigateRelativeScene(delta) {
+        const idx = this.scenes.findIndex(s => s.id === this.currentSceneId);
+        const newIdx = idx + delta;
+        if (newIdx < 0 || newIdx >= this.scenes.length) return;
+        this.editScene(this.scenes[newIdx].id);
     }
 
     renderEntityTags(entities) {
@@ -783,10 +865,92 @@ Benefits: Business logic, validation, complex operations`;
             block.open = false;
         });
     }
+
+    // Scene save logic
+    markSceneDirty() {
+        this._sceneDirty = true;
+        const status = document.getElementById('scene-save-status');
+        if (status) status.textContent = 'Unsaved changes';
+    }
+
+    debounceSceneSave() {
+        clearTimeout(this._sceneSaveTimer);
+        this._sceneSaveTimer = setTimeout(() => this.saveSceneChanges(), 1200);
+    }
+
+    async saveSceneChanges() {
+        if (!this.currentSceneId) return;
+        const titleEl = document.getElementById('scene-title');
+        const locationEl = document.getElementById('scene-location');
+        const payload = {};
+        if (titleEl) payload.title = titleEl.textContent.trim();
+        if (locationEl) payload.location_id = locationEl.value || null;
+        if (Object.keys(payload).length === 0) return;
+        try {
+            const res = await this.api.put(`/api/v1/scenes/${this.currentSceneId}`, payload);
+            this._sceneDirty = false;
+            const status = document.getElementById('scene-save-status');
+            if (status) status.textContent = 'Saved';
+            console.log('💾 Scene saved', res);
+        } catch (e) {
+            console.error('Scene save failed', e);
+            const status = document.getElementById('scene-save-status');
+            if (status) status.textContent = 'Save failed';
+        }
+    }
+
+    // Block creation
+    async addBlock(type) {
+        if (!this.currentSceneId) return;
+        const currentBlocks = Array.from(document.querySelectorAll('#scene-content details[data-block-id]'));
+        const order = currentBlocks.length;
+        const blockData = { block_type: type, order, content: '' };
+        try {
+            const resp = await this.api.post(`/api/v1/scenes/${this.currentSceneId}/blocks`, blockData);
+            const newBlock = resp.data?.block || resp.block || resp.data; // flexible handling
+            // Fetch blocks again for accurate ordering
+            await this.loadSceneIntoEditor(this.currentSceneId);
+            console.log('➕ Block added', newBlock);
+        } catch (e) {
+            console.error('Failed to add block', e);
+        }
+    }
+
+    // Block autosave
+    markBlockDirty(blockId) {
+        if (!this._dirtyBlocks) this._dirtyBlocks = new Set();
+        this._dirtyBlocks.add(blockId);
+    }
+    debounceBlockSave(blockId, detailsEl) {
+        if (!this._debouncers) this._debouncers = {};
+        clearTimeout(this._debouncers[blockId]);
+        this._debouncers[blockId] = setTimeout(() => this.saveBlock(blockId, detailsEl), 1000);
+    }
+    async saveBlock(blockId, detailsEl) {
+        if (!this.currentSceneId) return;
+        try {
+            // Determine block type
+            const blockType = detailsEl.getAttribute('data-block-type');
+            let content = '';
+            if (blockType === 'prose' || blockType === 'dialogue') {
+                const ta = detailsEl.querySelector('textarea');
+                if (ta) content = ta.value;
+            } else if (blockType === 'milestone') {
+                const inputs = detailsEl.querySelectorAll('input[type="text"]');
+                const parts = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+                content = parts.join(' ');
+            }
+            const order = Array.from(detailsEl.parentElement.querySelectorAll('details[data-block-id]')).indexOf(detailsEl);
+            const payload = { content, order };
+            await this.api.put(`/api/v1/scenes/${this.currentSceneId}/blocks/${blockId}`, payload);
+            console.log('💾 Block saved', blockId);
+        } catch (e) {
+            console.error('Failed to save block', blockId, e);
+        }
+    }
 }
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.storyEngine = new StoryEngine();
 });
-
