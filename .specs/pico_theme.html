@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantumMateria Pico CSS Theme</title>
+
+    <!-- 1. Import Pico CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+
+    <!-- 2. Import Inter Font -->
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+
+    <!-- 3. Define Custom Theme -->
+    <style>
+        /* QuantumMateria Theme for Pico CSS */
+        :root {
+            /* Font Families */
+            --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-family-serif: "Georgia", serif;
+
+            /* --- COMPACT APPLICATION DENSITY --- */
+            /* Reduced base font size and spacing to match the main app's density */
+            --font-size: 14px;
+            --spacing: 1rem;
+            --form-element-spacing-vertical: 0.6rem;
+            --form-element-spacing-horizontal: 0.8rem;
+            --block-spacing-vertical: var(--spacing);
+
+            /* Color Palette */
+            --pico-color-indigo-500: #6C63FF;
+            --pico-color-indigo-400: #8985F2;
+            --pico-color-gray-950: #0C0C0F;
+            --pico-color-gray-900: #111115;
+            --pico-color-gray-800: #1C1C22;
+            --pico-color-gray-700: #292932;
+            --pico-color-gray-400: #89899A;
+            --pico-color-gray-300: #B4B4C1;
+            --pico-color-red-400: #F87171;
+            --pico-color-green-400: #4ADE80;
+            --pico-color-yellow-500: #EAB308;
+            --pico-color-white: #FFFFFF;
+        }
+
+        [data-theme="dark"] {
+            /* General */
+            --background-color: var(--pico-color-gray-950);
+            --color: var(--pico-color-gray-300);
+            --line-height: 1.5; /* Adjusted for smaller font size */
+            --border-radius: 0.5rem; /* 8px */
+            --border-width: 1px;
+
+            /* Primary Action Color */
+            --primary: var(--pico-color-indigo-500);
+            --primary-hover: var(--pico-color-indigo-400);
+            --primary-focus: var(--pico-color-indigo-500);
+            --primary-inverse: var(--pico-color-white);
+
+            /* Typography */
+            --h1-color: var(--pico-color-white);
+            --h2-color: var(--pico-color-white);
+            --h3-color: var(--pico-color-white);
+            --h4-color: var(--pico-color-gray-300);
+            --h5-color: var(--pico-color-gray-300);
+            --h6-color: var(--pico-color-gray-400);
+            --muted-color: var(--pico-color-gray-400);
+            --mark-background-color: rgba(137, 133, 242, 0.2); /* indigo-400 with alpha */
+            --mark-color: var(--pico-color-indigo-400);
+            --code-font-family: "Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace;
+
+            /* Borders */
+            --border-color: var(--pico-color-gray-800);
+
+            /* Forms */
+            --form-element-background-color: var(--pico-color-gray-800);
+            --form-element-border-color: var(--pico-color-gray-700);
+            --form-element-color: var(--pico-color-gray-300);
+            --form-element-placeholder-color: var(--muted-color);
+            --form-element-active-background-color: var(--form-element-background-color);
+            --form-element-active-border-color: var(--primary);
+            --form-element-focus-color: var(--primary);
+            --form-element-disabled-background-color: var(--pico-color-gray-900);
+            --form-element-disabled-border-color: var(--pico-color-gray-800);
+            --form-element-disabled-opacity: 0.5;
+            --switch-background-color: var(--pico-color-gray-700);
+            --switch-color: var(--pico-color-white);
+            --switch-checked-background-color: var(--primary);
+
+            /* Cards */
+            --card-background-color: var(--pico-color-gray-900);
+            --card-border-color: var(--pico-color-gray-800);
+            --card-sectioning-background-color: var(--pico-color-gray-950);
+
+            /* Modals */
+            --modal-overlay-background-color: rgba(12, 12, 15, 0.8);
+
+            /* Dropdowns */
+            --dropdown-background-color: var(--pico-color-gray-900);
+            --dropdown-border-color: var(--pico-color-gray-800);
+            --dropdown-hover-background-color: var(--pico-color-gray-800);
+
+            /* Code Blocks */
+            --code-background-color: var(--pico-color-gray-800);
+            --code-color: var(--color);
+            --code-inline-background-color: var(--pico-color-gray-700);
+            --code-inline-color: var(--color);
+
+            /* Tables */
+            --table-border-color: var(--pico-color-gray-800);
+            --table-row-stripped-background-color: var(--pico-color-gray-900);
+
+            /* Accordions */
+            --accordion-border-color: var(--pico-color-gray-800);
+            --accordion-active-summary-color: var(--primary-hover);
+            --accordion-close-summary-color: var(--color);
+            --accordion-open-summary-color: var(--muted-color);
+
+            /* Misc */
+            --progress-background-color: var(--pico-color-gray-700);
+            --progress-color: var(--primary);
+        }
+
+        /* Additional custom styles to match the app's look and feel */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--background-color);
+        }
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+        .panel {
+            height: 100vh;
+            overflow-y: auto;
+            padding: var(--spacing);
+        }
+        .left-panel {
+            width: 20%;
+            min-width: 250px;
+            max-width: 320px;
+            flex-shrink: 0;
+            background-color: var(--pico-color-gray-900);
+            border-right: var(--border-width) solid var(--border-color);
+        }
+        .main-panel {
+            flex-grow: 1;
+        }
+        .right-panel {
+            width: 25%;
+            min-width: 320px;
+            max-width: 450px;
+            flex-shrink: 0;
+            background-color: var(--pico-color-gray-900);
+            border-left: var(--border-width) solid var(--border-color);
+        }
+        .prose-serif {
+            font-family: var(--font-family-serif);
+            color: var(--muted-color);
+            border-left: 2px solid var(--pico-color-gray-700);
+            padding-left: calc(var(--spacing) * 0.75);
+        }
+        button.secondary,
+        input[type="submit"].secondary,
+        input[type="button"].secondary {
+            --background-color: var(--pico-color-gray-800);
+            --border-color: var(--pico-color-gray-700);
+            --color: var(--pico-color-gray-300);
+        }
+        button.secondary:hover,
+        input[type="submit"].secondary:hover,
+        input[type="button"].secondary:hover {
+             --background-color: var(--pico-color-gray-700);
+             --border-color: var(--pico-color-gray-700);
+        }
+        /* Custom list styles for left panel */
+        .navlist a {
+            display: block;
+            padding: 0.375rem 0.75rem;
+            margin-bottom: 0.25rem;
+            border-radius: 0.375rem; /* 6px */
+            text-decoration: none;
+            color: var(--color);
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .navlist a:hover {
+            background-color: var(--pico-color-gray-800);
+        }
+        .navlist a[aria-current="page"] {
+            background-color: var(--primary);
+            color: var(--primary-inverse);
+            font-weight: 600;
+        }
+
+        :root {
+            --pico-font-family-sans-serif: Inter, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, "Helvetica Neue", sans-serif, var(--pico-font-family-emoji);
+            --pico-font-size: 87.5%;
+            /* Original: 100% */
+            --pico-line-height: 1.25;
+            /* Original: 1.5 */
+            --pico-form-element-spacing-vertical: 0.5rem;
+            /* Original: 1rem */
+            --pico-form-element-spacing-horizontal: 1.0rem;
+            /* Original: 1.25rem */
+            --pico-border-radius: 0.375rem;
+            /* Original: 0.25rem */
+        }
+
+        @media (min-width: 576px) {
+            :root {
+                --pico-font-size: 87.5%;
+                /* Original: 106.25% */
+            }
+        }
+
+        @media (min-width: 768px) {
+            :root {
+                --pico-font-size: 87.5%;
+                /* Original: 112.5% */
+            }
+        }
+
+        @media (min-width: 1024px) {
+            :root {
+                --pico-font-size: 87.5%;
+                /* Original: 118.75% */
+            }
+        }
+
+        @media (min-width: 1280px) {
+            :root {
+                --pico-font-size: 87.5%;
+                /* Original: 125% */
+            }
+        }
+
+        @media (min-width: 1536px) {
+            :root {
+                --pico-font-size: 87.5%;
+                /* Original: 131.25% */
+            }
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            --pico-font-weight: 600;
+            /* Original: 700 */
+        }
+
+        article {
+            border: 1px solid var(--pico-muted-border-color);
+            /* Original doesn't have a border */
+            border-radius: calc(var(--pico-border-radius) * 2);
+            /* Original: var(--pico-border-radius) */
+        }
+
+        article>footer {
+            border-radius: calc(var(--pico-border-radius) * 2);
+            /* Original: var(--pico-border-radius) */
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Panel -->
+    <aside class="panel left-panel">
+        <header>
+            <h2 style="margin-bottom: 0;">QuantumMateria</h2>
+            <p style="margin-top: 0; font-size: 0.8em; color: var(--muted-color);">Story Engine</p>
+        </header>
+        <nav>
+            <h5 style="margin-top: var(--spacing); margin-bottom: 0.5rem;">Story Goals</h5>
+            <ul class="navlist" style="list-style: none; padding: 0; margin: 0;">
+                <li><a href="#">Goal Planner</a></li>
+            </ul>
+
+            <h5 style="margin-top: var(--spacing); margin-bottom: 0.5rem;">Scenes</h5>
+            <ul class="navlist" style="list-style: none; padding: 0; margin: 0;">
+                <li><a href="#" aria-current="page">Neon-Soaked Alleys</a></li>
+                <li><a href="#">Data Heist</a></li>
+            </ul>
+
+            <h5 style="margin-top: var(--spacing); margin-bottom: 0.5rem;">Characters</h5>
+            <ul class="navlist" style="list-style: none; padding: 0; margin: 0;">
+                <li><a href="#">Dash</a></li>
+                <li><a href="#">Vera</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="panel main-panel container">
+        <header>
+            <h1>Scene Editor</h1>
+            <p>Component showcase for the QuantumMateria theme.</p>
+        </header>
+
+        <hr>
+
+        <section>
+            <h2>Typography</h2>
+            <h1>Heading 1 - On white text</h1>
+            <h2>Heading 2 - On white text</h2>
+            <h3>Heading 3 - On white text</h3>
+            <h4>Heading 4 - On lighter gray text</h4>
+            <h5>Heading 5 - On lighter gray text</h5>
+            <h6>Heading 6 - On muted gray text</h6>
+            <p>This is a standard paragraph using the Inter font. It uses the default body color. <strong>This is strong text.</strong> It's designed to be clean, readable, and well-organized. <a href="#">This is a link</a>, which uses the primary color. And this is <mark>highlighted text</mark>.</p>
+            <blockquote>"The rain fell in shimmering sheets, reflecting the neon signs of Nexus City."<br>
+                <footer>
+                <cite>- Sample Prose</cite>
+                </footer>
+            </blockquote>
+            <p class="prose-serif">This text block uses the custom 'prose-serif' class to mimic the style of AI suggestions, with Georgia font and a left border.</p>
+        </section>
+
+        <hr>
+
+        <section>
+            <h2>Buttons</h2>
+            <div class="grid">
+                <button>Primary Button</button>
+                <button class="secondary">Secondary Button</button>
+                <button class="contrast">Contrast Button</button>
+                <button class="outline" disabled>Disabled Button</button>
+            </div>
+        </section>
+
+        <hr>
+
+        <section>
+            <h2>Form Elements</h2>
+            <form>
+                <div class="grid">
+                    <label for="firstname">
+                        First name
+                        <input type="text" id="firstname" name="firstname" placeholder="e.g., Vera" required>
+                    </label>
+
+                    <label for="lastname">
+                        Last name
+                        <input type="text" id="lastname" name="lastname" placeholder="e.g., Chen" required>
+                    </label>
+                </div>
+
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Describe the entity..." rows="5"></textarea>
+
+                <label for="location">Location</label>
+                <select id="location" required>
+                    <option selected>-- No Location --</option>
+                    <option>Nexus City</option>
+                    <option>The Void</option>
+                </select>
+
+                <input type="submit" value="Submit">
+            </form>
+        </section>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="panel right-panel">
+        <section>
+            <h5>Continuity Analysis</h5>
+            <article>
+                <p style="color: var(--pico-color-green-400);">✅ No continuity issues found.</p>
+            </article>
+            <article style="margin-top: 1rem;">
+                <p style="color: var(--pico-color-yellow-500);">⚠️ <strong>Issue:</strong> Vera mentions the Quantum Core before learning about it.</p>
+                <small style="color: var(--muted-color); display: block; margin-top: 0.5rem;"><strong>Suggestion:</strong> Remove the mention or add a prior scene where she discovers it.</small>
+            </article>
+        </section>
+
+        <section style="margin-top: 2rem;">
+            <h5>World Query</h5>
+            <article>
+                <p><strong>You:</strong> Who is hunting Dash?</p>
+                <p><strong>AI:</strong> Vera is hunting Dash.</p>
+            </article>
+            <form style="margin-top: 1rem;">
+                <label for="world-query" class="pico-hide">Ask a question about your world</label>
+                <input type="search" id="world-query" name="search" placeholder="Ask a question...">
+            </form>
+        </section>
+
+        <section style="margin-top: 2rem;">
+            <h5>Accordion Example</h5>
+            <details>
+                <summary>Story Milestones</summary>
+                <p>A Milestone is a record of a significant event that happens to a character within a scene. It follows a Subject-Verb-Object structure (e.g., "Vera learns that 'The Glitch created Dash'").</p>
+            </details>
+        </section>
+    </aside>
+</body>
+</html>

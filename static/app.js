@@ -115,9 +115,9 @@ class StoryEngine {
     }
     
     updateNavActiveState(viewName) {
-        // Remove active state from all nav items
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
+        // Remove active state from all nav links
+        document.querySelectorAll('aside nav a').forEach(item => {
+            item.removeAttribute('aria-current');
         });
         
         // Add active state based on current view
@@ -125,9 +125,9 @@ class StoryEngine {
         if (viewName === 'scenes-list' || viewName === 'scene-editor') activeNavIndex = 1; // Scenes
         else if (viewName === 'entity-manager') activeNavIndex = 2; // Entities
         
-        const navItems = document.querySelectorAll('.nav-item');
-        if (navItems[activeNavIndex]) {
-            navItems[activeNavIndex].classList.add('active');
+        const navLinks = document.querySelectorAll('aside nav a');
+        if (navLinks[activeNavIndex]) {
+            navLinks[activeNavIndex].setAttribute('aria-current', 'page');
         }
     }
 
@@ -778,43 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Add some basic styles for nav items
 const style = document.createElement('style');
 style.textContent = `
-    .nav-item {
-        padding: 0.5rem;
-        margin: 0.2rem 0;
-        background: var(--bg-2);
-        border: 1px solid var(--border-1);
-        border-radius: var(--compact-border-radius);
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .nav-item:hover {
-        background: var(--bg-3);
-        border-color: var(--brand);
-    }
-    
-    .nav-item.selected {
-        background: var(--brand);
-        border-color: var(--brand);
-    }
-    
-    .nav-item.selected strong,
-    .nav-item.selected small {
-        color: white;
-    }
-    
-    .nav-item strong {
-        display: block;
-        color: var(--ink-1);
-        font-size: 0.8rem;
-    }
-    
-    .nav-item small {
-        display: block;
-        color: var(--ink-3);
-        font-size: 0.7rem;
-        margin-top: 0.2rem;
-    }
+    /* Nav styles are now handled by Pico CSS semantic HTML */
     
     .empty, .error {
         color: var(--ink-3);

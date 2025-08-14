@@ -5,321 +5,284 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuantumMateria Story Engine</title>
     
-    <!-- PicoCSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <!-- PicoCSS v2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/scene-editor.css">
     
     <!-- Supabase client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-    <div class="story-workspace">
-        <!-- Left Sidebar: Navigation -->
-        <nav class="nav-column">
-            <header class="nav-header">
+    <!-- Left Sidebar: Navigation -->
+    <aside>
+        <header>
+            <hgroup>
                 <h1>Story Engine</h1>
-                <small>QuantumMateria v0.2.0</small>
-            </header>
-            
-            <div class="nav-menu">
-                <a href="#" class="nav-item active" onclick="window.storyEngine?.showView('welcome-state')">
-                    <span class="nav-icon">🏠</span>
-                    <span class="nav-label">Dashboard</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="window.storyEngine?.showView('scenes-list')">
-                    <span class="nav-icon">🎬</span>
-                    <span class="nav-label">Scenes</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="window.storyEngine?.showView('entity-manager')">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-label">Entities</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="alert('Goals management coming soon!')">
-                    <span class="nav-icon">🎯</span>
-                    <span class="nav-label">Goals</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="alert('Timeline view coming soon!')">
-                    <span class="nav-icon">📅</span>
-                    <span class="nav-label">Timeline</span>
-                </a>
-                
-                <div class="nav-divider"></div>
-                
-                <a href="#" class="nav-item" onclick="alert('Settings coming soon!')">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-label">Settings</span>
-                </a>
-            </div>
-            
-            <div class="nav-footer">
-                <div id="system-status" class="status-display">
-                    <p class="loading">Checking system health...</p>
-                </div>
-            </div>
+                <p>QuantumMateria v0.2.0</p>
+            </hgroup>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="#" aria-current="page" onclick="window.storyEngine?.showView('welcome-state')">🏠 Dashboard</a></li>
+                <li><a href="#" onclick="window.storyEngine?.showView('scenes-list')">🎬 Scenes</a></li>
+                <li><a href="#" onclick="window.storyEngine?.showView('entity-manager')">👥 Entities</a></li>
+                <li><a href="#" onclick="alert('Goals management coming soon!')">🎯 Goals</a></li>
+                <li><a href="#" onclick="alert('Timeline view coming soon!')">📅 Timeline</a></li>
+            </ul>
         </nav>
         
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <div id="editor-content">
-                <!-- Welcome state when no scene is selected -->
-                <div id="welcome-state" class="welcome-state">
-                    <h2>Welcome to QuantumMateria Story Engine</h2>
-                    <p>Select a scene from the left navigation to begin editing, or create a new scene to get started.</p>
-                    
-                    <div class="demo-section">
-                        <h3>Demo: Hybrid Architecture</h3>
-                        <p>This interface demonstrates the hybrid Supabase + FastAPI approach:</p>
-                        <ul>
-                            <li><strong>Direct Supabase</strong>: Scene/entity lists, basic CRUD operations</li>
-                            <li><strong>FastAPI Commands</strong>: Block reordering, complex operations</li>
-                        </ul>
-                        
-                        <div class="demo-buttons">
-                            <button id="demo-supabase" class="demo-btn">Test Supabase Direct</button>
-                            <button id="demo-fastapi" class="demo-btn">Test FastAPI Command</button>
-                        </div>
-                        
-                        <div id="demo-output" class="demo-output"></div>
-                    </div>
-                </div>
-
-                <!-- Scenes List (hidden by default) -->
-                <div id="scenes-list" class="scenes-list">
-                    <!-- Scenes Header -->
-                    <header class="scenes-header">
-                        <h1>Scenes</h1>
-                        <p class="page-description">Manage and organize your story scenes in chronological order.</p>
-                        <div class="scenes-actions-bar">
-                            <div class="scenes-stats">
-                                <span id="scenes-count">0 scenes</span>
-                            </div>
-                            <button id="create-scene-btn" class="primary-btn">+ New Scene</button>
-                        </div>
-                    </header>
-
-                    <!-- Scenes Filters -->
-                    <section class="scenes-filters">
-                        <div class="filter-row">
-                            <select id="scenes-sort-filter">
-                                <option value="timestamp">Sort by Timestamp</option>
-                                <option value="created_at">Sort by Created</option>
-                                <option value="title">Sort by Title</option>
-                            </select>
-                            
-                            <select id="location-filter">
-                                <option value="">All Locations</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                            
-                            <input type="text" id="scenes-search-input" placeholder="Search scenes by title..." />
-                            
-                            <button id="clear-scenes-filters">Clear</button>
-                        </div>
-                    </section>
-
-                    <!-- Scenes List -->
-                    <main class="scenes-main">
-                        <div class="scenes-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Timeline</th>
-                                        <th>Scene Title</th>
-                                        <th>Location</th>
-                                        <th>Created</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="scenes-table-body">
-                                    <!-- Scenes will be populated here -->
-                                    <tr>
-                                        <td colspan="5" class="loading-state">
-                                            <p>Loading scenes...</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div id="scenes-pagination" class="pagination" style="display: none;">
-                            <button id="scenes-prev-page" disabled>← Previous</button>
-                            <span id="scenes-page-info">Page 1 of 1</span>
-                            <button id="scenes-next-page" disabled>Next →</button>
-                        </div>
-                    </main>
-                </div>
-
-                <!-- Scene editor (hidden by default) -->
-                <div id="scene-editor" class="scene-editor" style="display: none;">
-                    <!-- Breadcrumb navigation -->
-                    <nav class="scene-breadcrumb">
-                        <a href="#" onclick="window.storyEngine?.showView('scenes-list')" class="breadcrumb-link">
-                            ← Scenes
-                        </a>
-                        <span class="breadcrumb-separator">/</span>
-                        <span class="breadcrumb-current" id="scene-breadcrumb-title">Scene Title</span>
-                    </nav>
-                    
-                    <!-- Scene header with metadata -->
-                    <header class="scene-header">
-                        <div class="scene-title-row">
-                            <h1 id="scene-title" contenteditable="true" placeholder="Scene Title">Untitled Scene</h1>
-                            <div class="scene-metadata">
-                                <span class="timestamp">Day <span id="scene-timestamp">1</span></span>
-                                <span class="scene-id">ID: <span id="scene-id">---</span></span>
-                            </div>
-                        </div>
-                        
-                        <div class="scene-causality">
-                            <div class="causality-field">
-                                <label>Location:</label>
-                                <select id="scene-location">
-                                    <option value="">Select location...</option>
-                                </select>
-                            </div>
-                            <div class="causality-field">
-                                <label>Previous scene:</label>
-                                <select id="scene-previous">
-                                    <option value="">No previous scene</option>
-                                </select>
-                            </div>
-                            <div class="causality-field">
-                                <label>Next scene:</label>
-                                <select id="scene-next">
-                                    <option value="">No next scene</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="linked-entities" id="linked-entities">
-                            <!-- Entity tags will be populated here -->
-                        </div>
-                    </header>
-
-                    <!-- Scene content blocks -->
-                    <div class="scene-content" id="scene-content">
-                        <!-- Scene blocks will be populated here -->
-                    </div>
-
-                    <!-- Add block controls -->
-                    <div class="add-block-controls">
-                        <button id="add-prose" class="add-block-btn" type="button">+ Prose</button>
-                        <button id="add-dialogue" class="add-block-btn" type="button">+ Dialogue</button>
-                        <button id="add-milestone" class="add-block-btn" type="button">+ Milestone</button>
-                    </div>
-                </div>
-
-                <!-- Entity Manager (hidden by default) -->
-                <div id="entity-manager" class="entity-manager">
-                    <!-- Entity Header -->
-                    <header class="entity-header">
-                        <h1>Entity Management</h1>
-                        <p class="page-description">Manage characters, locations, and artifacts in your story world.</p>
-                        <div class="entity-actions-bar">
-                            <div class="entity-stats">
-                                <span id="entity-count">0 entities</span>
-                            </div>
-                            <button id="create-entity-btn" class="primary-btn">+ New Entity</button>
-                        </div>
-                    </header>
-
-                    <!-- Entity Filters -->
-                    <section class="entity-filters">
-                        <div class="filter-row">
-                            <select id="type-filter">
-                                <option value="">All Types</option>
-                                <option value="character">Characters</option>
-                                <option value="location">Locations</option>
-                                <option value="artifact">Artifacts</option>
-                            </select>
-                            
-                            <input type="text" id="search-input" placeholder="Search entities..." />
-                            
-                            <button id="clear-filters">Clear</button>
-                        </div>
-                    </section>
-
-                    <!-- Entity List -->
-                    <main class="entity-main">
-                        <div id="entity-list" class="entity-grid">
-                            <!-- Entities will be populated here -->
-                            <div class="loading-state">
-                                <p>Loading entities...</p>
-                            </div>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div id="pagination" class="pagination" style="display: none;">
-                            <button id="prev-page" disabled>← Previous</button>
-                            <span id="page-info">Page 1 of 1</span>
-                            <button id="next-page" disabled>Next →</button>
-                        </div>
-                    </main>
-                </div>
+        <footer>
+            <div id="system-status">
+                <p><span aria-busy="true">Checking system health...</span></p>
             </div>
-        </main>
-    </div>
+        </footer>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <main>
+        <section id="welcome-state">
+            <hgroup>
+                <h1>Welcome to QuantumMateria Story Engine</h1>
+                <p>Select a scene from the left navigation to begin editing, or create a new scene to get started.</p>
+            </hgroup>
+            
+            <article>
+                <header>
+                    <h3>Demo: Hybrid Architecture</h3>
+                </header>
+                <p>This interface demonstrates the hybrid Supabase + FastAPI approach:</p>
+                <ul>
+                    <li><strong>Direct Supabase</strong>: Scene/entity lists, basic CRUD operations</li>
+                    <li><strong>FastAPI Commands</strong>: Block reordering, complex operations</li>
+                </ul>
+                
+                <footer>
+                    <button id="demo-supabase">Test Supabase Direct</button>
+                    <button id="demo-fastapi" role="button" class="secondary">Test FastAPI Command</button>
+                </footer>
+            </article>
+            
+            <pre id="demo-output"><code aria-busy="true">Loading...</code></pre>
+        </section>
+
+        <!-- Scenes List (hidden by default) -->
+        <section id="scenes-list" style="display: none;">
+            <header>
+                <hgroup>
+                    <h1>Scenes</h1>
+                    <p>Manage and organize your story scenes in chronological order.</p>
+                </hgroup>
+                <div>
+                    <small id="scenes-count">0 scenes</small>
+                    <button id="create-scene-btn">+ New Scene</button>
+                </div>
+            </header>
+
+            <!-- Scenes Filters -->
+            <form>
+                <fieldset role="group">
+                    <select id="scenes-sort-filter" aria-label="Sort by">
+                        <option value="timestamp">Sort by Timestamp</option>
+                        <option value="created_at">Sort by Created</option>
+                        <option value="title">Sort by Title</option>
+                    </select>
+                    
+                    <select id="location-filter" aria-label="Filter by location">
+                        <option value="">All Locations</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                    
+                    <input type="search" id="scenes-search-input" placeholder="Search scenes..." aria-label="Search scenes" />
+                    
+                    <button type="button" id="clear-scenes-filters" role="button" class="secondary">Clear</button>
+                </fieldset>
+            </form>
+
+            <!-- Scenes Table -->
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Timeline</th>
+                        <th scope="col">Scene Title</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Created</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="scenes-table-body">
+                    <tr>
+                        <td colspan="5">
+                            <span aria-busy="true">Loading scenes...</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <nav id="scenes-pagination" style="display: none;" aria-label="Scenes pagination">
+                <ul>
+                    <li><button id="scenes-prev-page" disabled>← Previous</button></li>
+                    <li><span id="scenes-page-info">Page 1 of 1</span></li>
+                    <li><button id="scenes-next-page" disabled>Next →</button></li>
+                </ul>
+            </nav>
+        </section>
+
+        <!-- Scene editor (hidden by default) -->
+        <section id="scene-editor" style="display: none;">
+            <!-- Breadcrumb navigation -->
+            <nav aria-label="breadcrumb">
+                <ul>
+                    <li><a href="#" onclick="window.storyEngine?.showView('scenes-list')">Scenes</a></li>
+                    <li id="scene-breadcrumb-title">Scene Title</li>
+                </ul>
+            </nav>
+            <header>
+                <hgroup>
+                    <h1 id="scene-title" contenteditable="true">Untitled Scene</h1>
+                    <p>Day <span id="scene-timestamp">1</span> • ID: <span id="scene-id">---</span></p>
+                </hgroup>
+            </header>
+            
+            <form>
+                <fieldset>
+                    <legend>Scene Details</legend>
+                    <label for="scene-location">Location:
+                        <select id="scene-location">
+                            <option value="">Select location...</option>
+                        </select>
+                    </label>
+                    <label for="scene-previous">Previous scene:
+                        <select id="scene-previous">
+                            <option value="">No previous scene</option>
+                        </select>
+                    </label>
+                    <label for="scene-next">Next scene:
+                        <select id="scene-next">
+                            <option value="">No next scene</option>
+                        </select>
+                    </label>
+                </fieldset>
+            </form>
+
+            <div id="linked-entities">
+                <!-- Entity tags will be populated here -->
+            </div>
+
+            <!-- Scene content blocks -->
+            <main id="scene-content">
+                <!-- Scene blocks will be populated here -->
+            </main>
+
+            <!-- Add block controls -->
+            <footer>
+                <button id="add-prose" type="button">+ Prose</button>
+                <button id="add-dialogue" type="button" role="button" class="secondary">+ Dialogue</button>
+                <button id="add-milestone" type="button" role="button" class="secondary">+ Milestone</button>
+            </footer>
+        </section>
+
+        <!-- Entity Manager (hidden by default) -->
+        <section id="entity-manager" style="display: none;">
+            <header>
+                <hgroup>
+                    <h1>Entity Management</h1>
+                    <p>Manage characters, locations, and artifacts in your story world.</p>
+                </hgroup>
+                <div>
+                    <small id="entity-count">0 entities</small>
+                    <button id="create-entity-btn">+ New Entity</button>
+                </div>
+            </header>
+
+            <!-- Entity Filters -->
+            <form>
+                <fieldset role="group">
+                    <select id="type-filter" aria-label="Filter by type">
+                        <option value="">All Types</option>
+                        <option value="character">Characters</option>
+                        <option value="location">Locations</option>
+                        <option value="artifact">Artifacts</option>
+                    </select>
+                    
+                    <input type="search" id="search-input" placeholder="Search entities..." aria-label="Search entities" />
+                    
+                    <button type="button" id="clear-filters" role="button" class="secondary">Clear</button>
+                </fieldset>
+            </form>
+
+            <!-- Entity List -->
+            <main id="entity-list">
+                <span aria-busy="true">Loading entities...</span>
+            </main>
+
+            <!-- Pagination -->
+            <nav id="pagination" style="display: none;" aria-label="Entity pagination">
+                <ul>
+                    <li><button id="prev-page" disabled>← Previous</button></li>
+                    <li><span id="page-info">Page 1 of 1</span></li>
+                    <li><button id="next-page" disabled>Next →</button></li>
+                </ul>
+            </nav>
+        </section>
+    </main>
 
     <!-- Entity Management Modals -->
     <!-- Create/Edit Entity Modal -->
-    <div id="entity-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <header class="modal-header">
+    <dialog id="entity-modal">
+        <article>
+            <header>
+                <button id="close-modal" aria-label="Close" rel="prev"></button>
                 <h2 id="modal-title">Create Entity</h2>
-                <button id="close-modal" class="close-btn">&times;</button>
             </header>
 
             <form id="entity-form">
-                <div class="form-group">
-                    <label for="entity-name">Name</label>
+                <label for="entity-name">Name
                     <input type="text" id="entity-name" required placeholder="Enter entity name" />
-                </div>
+                </label>
 
-                <div class="form-group">
-                    <label for="entity-type">Type</label>
+                <label for="entity-type">Type
                     <select id="entity-type" required>
                         <option value="">Select type...</option>
                         <option value="character">Character</option>
                         <option value="location">Location</option>
                         <option value="artifact">Artifact</option>
                     </select>
-                </div>
+                </label>
 
-                <div class="form-group">
-                    <label for="entity-description">Description</label>
+                <label for="entity-description">Description
                     <textarea id="entity-description" rows="4" placeholder="Enter description..."></textarea>
-                </div>
+                </label>
 
-                <div class="form-actions">
-                    <button type="button" id="cancel-btn" class="secondary-btn">Cancel</button>
-                    <button type="submit" id="save-btn" class="primary-btn">Save Entity</button>
-                </div>
+                <footer>
+                    <button type="button" id="cancel-btn" class="secondary">Cancel</button>
+                    <button type="submit" id="save-btn">Save Entity</button>
+                </footer>
             </form>
-        </div>
-    </div>
+        </article>
+    </dialog>
 
     <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="modal" style="display: none;">
-        <div class="modal-content small">
-            <header class="modal-header">
+    <dialog id="delete-modal">
+        <article>
+            <header>
                 <h2>Delete Entity</h2>
             </header>
             <p>Are you sure you want to delete "<span id="delete-entity-name"></span>"?</p>
-            <p class="warning">This action cannot be undone.</p>
-            <div class="form-actions">
-                <button id="cancel-delete" class="secondary-btn">Cancel</button>
-                <button id="confirm-delete" class="danger-btn">Delete</button>
-            </div>
-        </div>
-    </div>
+            <p><small>This action cannot be undone.</small></p>
+            <footer>
+                <button id="cancel-delete" class="secondary">Cancel</button>
+                <button id="confirm-delete" class="contrast">Delete</button>
+            </footer>
+        </article>
+    </dialog>
     
     <!-- Scripts -->
     <script src="/static/api.js"></script>
