@@ -105,20 +105,17 @@ INSERT INTO scenes (id, title, location_id, timestamp) VALUES
 INSERT INTO scene_blocks (id, scene_id, block_type, "order", content, weight, metadata) VALUES
 ('1b111111-1111-1111-1111-111111111111', '1a111111-1111-1111-1111-111111111111', 'prose', 1, 
 'The Prancing Pony tavern buzzed with the warm chatter of evening patrons. Firelight danced across worn wooden tables where merchants counted coins and travelers shared tales of distant roads. The sweet aroma of honey mead mixed with the hearty scent of roasted mutton, creating an atmosphere of comfort that made even the weariest souls feel welcome.',
-1.0, '{"mood": "welcoming", "time": "evening", "atmosphere": "busy"}'),
-
-('1b111112-1111-1111-1111-111111111111', '1a111111-1111-1111-1111-111111111111', 'dialogue', 2, 
-NULL, 1.0, '{"participants": ["Lyra", "Kael"], "mood": "tense"}');
+1.0, '{"mood": "welcoming", "time": "evening", "atmosphere": "busy"}');
 
 INSERT INTO scene_blocks (id, scene_id, block_type, "order", summary, lines, weight, metadata) VALUES
-('1b111113-1111-1111-1111-111111111111', '1a111111-1111-1111-1111-111111111111', 'dialogue', 3,
+('1b111112-1111-1111-1111-111111111111', '1a111111-1111-1111-1111-111111111111', 'dialogue', 2,
 'Lyra approaches the mysterious stranger in dark armor', 
 '[
   {"speaker": "Lyra Dawnweaver", "text": "You''re him, aren''t you? The fallen paladin everyone whispers about.", "emotion": "curious"},
   {"speaker": "Kael Shadowbane", "text": "Depends who''s asking. Though I''d hardly call myself fallen... more like redirected.", "emotion": "guarded"},
   {"speaker": "Lyra Dawnweaver", "text": "I need someone who knows the dark roads. Someone who''s walked them and survived.", "emotion": "determined"},
   {"speaker": "Kael Shadowbane", "text": "And what makes you think I''d help a mage? Your kind aren''t exactly popular with my... condition.", "emotion": "bitter"}
-]'::jsonb, 1.5, '{"tension": "high", "recruitment": true}');
+]'::jsonb, 1.5, '{"tension": "high", "recruitment": true, "participants": ["Lyra Dawnweaver", "Kael Shadowbane"]}';
 
 -- Add milestone for first meeting
 INSERT INTO scene_blocks (id, scene_id, block_type, "order", subject_id, verb, object_id, weight, metadata) VALUES

@@ -18,10 +18,35 @@ CREATE TABLE IF NOT EXISTS entities (
   entity_type TEXT NOT NULL, -- 'character', 'location', 'artifact', 'event', 'knowledge_fact'
   description TEXT,
   metadata JSONB,
+  embedding VECTOR(1536), -- for semantic search
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_entities_entity_type ON entities(entity_type);
+CREATE INDEX IF NOT EXISTS idx_entities_embedding ON entities USING hnsw (embedding vector_cosine_ops);
+
+-- Semantic search function for entities
+CREATE OR REPLACE FUNCTION search_entities_by_embedding(
+  query_embedding VECTOR(1536),
+  match_threshold FLOAT DEFAULT 0.5,
+  match_count INT DEFAULT 10
+) RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  entity_type TEXT,
+  description TEXT,
+  metadata JSONB,
+  similarity FLOAT
+) LANGUAGE sql STABLE AS $$
+  SELECT
+    e.id, e.name, e.entity_type, e.description, e.metadata,
+    1 - (e.embedding <=> query_embedding) AS similarity
+  FROM entities e
+  WHERE e.embedding IS NOT NULL
+    AND (1 - (e.embedding <=> query_embedding)) > match_threshold
+  ORDER BY (e.embedding <=> query_embedding) ASC
+  LIMIT match_count;
+$$;
 
 -- =============================
 -- SCENES
@@ -146,9 +171,36 @@ CREATE TABLE IF NOT EXISTS knowledge_snapshots (
   "timestamp" INT,
   knowledge JSONB, -- key-value store of what this entity knows at a given point
   metadata JSONB,
+  embedding VECTOR(1536), -- for semantic search
   created_at TIMESTAMP DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_snapshots_entity_time ON knowledge_snapshots(entity_id, "timestamp");
+CREATE INDEX IF NOT EXISTS idx_knowledge_snapshots_embedding ON knowledge_snapshots USING hnsw (embedding vector_cosine_ops);
+
+-- Semantic search function for knowledge snapshots
+CREATE OR REPLACE FUNCTION search_knowledge_by_embedding(
+  query_embedding VECTOR(1536),
+  match_threshold FLOAT DEFAULT 0.5,
+  match_count INT DEFAULT 10,
+  filter_entity_id UUID DEFAULT NULL
+) RETURNS TABLE (
+  id UUID,
+  entity_id UUID,
+  "timestamp" INT,
+  knowledge JSONB,
+  metadata JSONB,
+  similarity FLOAT
+) LANGUAGE sql STABLE AS $$
+  SELECT
+    k.id, k.entity_id, k."timestamp", k.knowledge, k.metadata,
+    1 - (k.embedding <=> query_embedding) AS similarity
+  FROM knowledge_snapshots k
+  WHERE k.embedding IS NOT NULL
+    AND (filter_entity_id IS NULL OR k.entity_id = filter_entity_id)
+    AND (1 - (k.embedding <=> query_embedding)) > match_threshold
+  ORDER BY (k.embedding <=> query_embedding) ASC
+  LIMIT match_count;
+$$;
 
 -- =============================
 -- RELATIONSHIPS

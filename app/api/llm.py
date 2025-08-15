@@ -124,17 +124,17 @@ async def analyze_narrative_consistency(request: NarrativeAnalysisRequest):
         # Get character knowledge context if character_id provided
         character_knowledge = {}
         if request.character_id:
-            knowledge_response = await db.table("knowledge_snapshots").select(
-                "knowledge_state"
-            ).eq("character_id", str(request.character_id))
+            knowledge_response = db.table("knowledge_snapshots").select(
+                "knowledge"
+            ).eq("entity_id", str(request.character_id))
             
             if request.timeline_timestamp:
-                knowledge_response = knowledge_response.lte("timeline_timestamp", request.timeline_timestamp)
+                knowledge_response = knowledge_response.lte("timestamp", request.timeline_timestamp)
                 
-            knowledge_response = knowledge_response.order("timeline_timestamp", desc=True).limit(1).execute()
+            knowledge_response = knowledge_response.order("timestamp", desc=True).limit(1).execute()
             
             if knowledge_response.data:
-                character_knowledge = knowledge_response.data[0]["knowledge_state"]
+                character_knowledge = knowledge_response.data[0]["knowledge"]
         
         # Get timeline context
         timeline_context = {}
@@ -211,17 +211,17 @@ async def generate_scene_content(request: SceneGenerationRequest):
         # Get character states
         character_states = []
         for character_id in request.character_ids:
-            knowledge_response = await db.table("knowledge_snapshots").select(
-                "character_id, knowledge_state, timeline_timestamp"
-            ).eq("character_id", str(character_id))
+            knowledge_response = db.table("knowledge_snapshots").select(
+                "entity_id, knowledge, timestamp"
+            ).eq("entity_id", str(character_id))
             
             if request.timeline_timestamp:
                 knowledge_response = knowledge_response.lte(
-                    "timeline_timestamp", request.timeline_timestamp
+                    "timestamp", request.timeline_timestamp
                 )
                 
             knowledge_response = knowledge_response.order(
-                "timeline_timestamp", desc=True
+                "timestamp", desc=True
             ).limit(1).execute()
             
             if knowledge_response.data:
@@ -287,10 +287,10 @@ async def suggest_narrative_continuations(request: NarrativeSuggestionsRequest):
         # Get character arcs
         character_arcs = []
         for character_id in request.character_ids:
-            arc_response = await db.table("knowledge_snapshots").select(
-                "character_id, knowledge_state, timeline_timestamp"
-            ).eq("character_id", str(character_id)).order(
-                "timeline_timestamp", desc=True
+            arc_response = db.table("knowledge_snapshots").select(
+                "entity_id, knowledge, timestamp"
+            ).eq("entity_id", str(character_id)).order(
+                "timestamp", desc=True
             ).limit(5).execute()
             
             if arc_response.data:

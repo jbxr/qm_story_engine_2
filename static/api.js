@@ -75,8 +75,17 @@ class ApiClient {
     }
 
     async getSceneEntities(sceneId) {
-        // For now, return empty entities since this endpoint might not exist yet
-        return { success: true, data: { entities: [] } };
+        // Use the entities already loaded by StoryEngine from Supabase
+        // This provides entities for dialogue speaker dropdowns
+        try {
+            // Access the storyEngine's loaded entities
+            const entities = window.storyEngine?.entitiesPreview || [];
+            console.log('getSceneEntities returning:', entities.length, 'entities');
+            return { success: true, data: { entities: entities } };
+        } catch (error) {
+            console.warn('Error accessing loaded entities for scene:', error);
+            return { success: true, data: { entities: [] } };
+        }
     }
 
     async createSceneBlock(sceneId, blockData) {

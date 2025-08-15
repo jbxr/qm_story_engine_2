@@ -732,18 +732,22 @@ class SearchService:
             # Generate embedding for the query
             query_embedding = await self.embedding_service.generate_embedding(query)
             
-            # Build the RPC call with filters
+            # Build the RPC call - the function doesn't support entity_type filtering yet
             rpc_params = {
                 'query_embedding': query_embedding,
                 'match_threshold': similarity_threshold,
                 'match_count': limit
             }
             
-            if entity_type:
-                rpc_params['filter_entity_type'] = entity_type
-                
             # Call the database search function
             response = self.db.rpc('search_entities_by_embedding', rpc_params).execute()
+            
+            # Filter by entity type in Python if specified
+            if entity_type and response.data:
+                response.data = [
+                    entity for entity in response.data 
+                    if entity.get('entity_type') == entity_type
+                ]
             
             if response.data:
                 logger.info(f"Found {len(response.data)} entities for query: {query[:50]}...")
@@ -791,14 +795,24 @@ class SearchService:
             }
             
             if character_id:
-                rpc_params['filter_character_id'] = str(character_id)
-            if timeline_start is not None:
-                rpc_params['filter_timeline_start'] = timeline_start
-            if timeline_end is not None:
-                rpc_params['filter_timeline_end'] = timeline_end
+                rpc_params['filter_entity_id'] = str(character_id)
+            # Note: timeline filtering not yet implemented in database function
                 
             # Call the database search function
             response = self.db.rpc('search_knowledge_by_embedding', rpc_params).execute()
+            
+            # Filter by timeline in Python if specified
+            if response.data and (timeline_start is not None or timeline_end is not None):
+                filtered_data = []
+                for item in response.data:
+                    timestamp = item.get('timestamp')
+                    if timestamp is not None:
+                        if timeline_start is not None and timestamp < timeline_start:
+                            continue
+                        if timeline_end is not None and timestamp > timeline_end:
+                            continue
+                    filtered_data.append(item)
+                response.data = filtered_data
             
             if response.data:
                 logger.info(f"Found {len(response.data)} knowledge snapshots for query: {query[:50]}...")

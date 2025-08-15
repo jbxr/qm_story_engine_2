@@ -23,6 +23,10 @@ async def test_killer_ai_storytelling_workflow():
     
     try:
         # Import services
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         from app.services.database import get_supabase
         from app.services.embedding_service import embedding_service  
         from app.services.search_service import search_service
@@ -231,7 +235,7 @@ async def test_killer_ai_storytelling_workflow():
         print("\n🔍 STEP 4: Testing Semantic Search (Basic Test)")
         print("-" * 40)
         
-        # Test basic entity search (this function should work)
+        # Test semantic entity search 
         try:
             entity_search = await search_service.search_entities(
                 query="wise teacher magical mentor",
@@ -239,10 +243,41 @@ async def test_killer_ai_storytelling_workflow():
                 similarity_threshold=0.3,
                 limit=5
             )
-            print(f"✅ Entity search found {len(entity_search)} matches")
+            print(f"✅ Entity semantic search found {len(entity_search)} matches")
+            if entity_search:
+                print(f"   Top match: {entity_search[0].get('name', 'Unknown')} (similarity: {entity_search[0].get('similarity', 0.0):.3f})")
         except Exception as e:
-            print(f"⚠️  Semantic search needs schema sync, but embeddings work: {str(e)[:100]}...")
+            print(f"⚠️  Semantic entity search failed: {str(e)[:100]}...")
             print("✅ Embeddings generated successfully - continuing with LLM tests")
+        
+        # Test semantic scene block search
+        try:
+            scene_block_search = await search_service.search_scene_blocks(
+                query="magic lesson library teaching",
+                similarity_threshold=0.3,
+                limit=5
+            )
+            print(f"✅ Scene block semantic search found {len(scene_block_search)} matches")
+            if scene_block_search:
+                # Handle both content and summary fields for different block types
+                first_result = scene_block_search[0]
+                preview_text = first_result.get('content') or first_result.get('summary') or 'No content'
+                print(f"   Top match: {preview_text[:50]}... (similarity: {first_result.get('similarity', 0.0):.3f})")
+        except Exception as e:
+            print(f"⚠️  Semantic scene block search failed: {str(e)[:100]}...")
+        
+        # Test semantic knowledge search
+        try:
+            knowledge_search = await search_service.search_knowledge_snapshots(
+                query="magical energy apprentice training",
+                similarity_threshold=0.3,
+                limit=5
+            )
+            print(f"✅ Knowledge semantic search found {len(knowledge_search)} matches") 
+            if knowledge_search:
+                print(f"   Top match: Knowledge for entity {knowledge_search[0].get('entity_id', 'Unknown')}")
+        except Exception as e:
+            print(f"⚠️  Semantic knowledge search failed: {str(e)[:100]}...")
         
         # =============================
         # Step 5: Test LLM Content Generation
