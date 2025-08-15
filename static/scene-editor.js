@@ -788,6 +788,17 @@
   }
 
   async function moveBlock(blockId, delta){
+    // T10 Performance Monitoring - Measure block reorder operation
+    if (window.storyEngine && window.storyEngine.measureBlockOperation) {
+      return window.storyEngine.measureBlockOperation('blockReorder', blockId, () => {
+        return performMoveBlock(blockId, delta);
+      });
+    } else {
+      return performMoveBlock(blockId, delta);
+    }
+  }
+  
+  async function performMoveBlock(blockId, delta) {
     const arr = sceneState.blocks;
     const idx = arr.findIndex(b=>b.id===blockId);
     if (idx < 0) return;

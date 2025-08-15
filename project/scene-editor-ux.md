@@ -75,7 +75,7 @@ T6 | P1 | Central status UI | ✅ **COMPLETE**: Unified status component with co
 T7 | P1 | Dirty navigation guard | ✅ **COMPLETE**: Browser-level protection prevents data loss; dirty state detection for scene and blocks working; internal navigation guard architecture implemented
 T8 | P1 | Milestone structured persistence | ✅ **COMPLETE**: Structured milestone interface with entity dropdowns, subject_id/verb/object_id persistence, backward compatibility, integrated with T3/T5
 T9 | P1 | Dialogue structure | ✅ **COMPLETE**: Structured dialogue with speaker dropdowns, dynamic line management, lines array persistence, preview integration with T3/T5
-T10 | P2 | Performance profiling | Measure block append & autosave impact with 100+ blocks
+T10 | P2 | Performance profiling | ✅ **COMPLETE**: Comprehensive performance monitoring system with scene load tracking, block operation timing, memory usage monitoring, global performance reporting functions, and automated stress testing capabilities
 T11 | P2 | Batch reorder optimization | Apply multiple moves then send minimal update sequence
 T12 | P2 | Accessibility pass | Keyboard navigation for blocks; ARIA roles; focus management on add/delete
 T13 | P2 | Status toasts / ephemeral messages | Non-blocking confirmations for saves/errors

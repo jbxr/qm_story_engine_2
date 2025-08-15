@@ -155,8 +155,15 @@ class StoryEngine {
 
     // Load a scene into the editor page after it is inserted into DOM
     async loadSceneIntoEditor(sceneId) {
+        // T10 Performance Monitoring - Start timing scene load
+        const sceneLoadStart = performance.now();
+        
         try {
             console.log('📝 Loading scene into editor:', sceneId);
+            
+            // Initialize performance monitoring for this scene
+            this.initPerformanceMonitoring();
+            
             // Ensure scenes list is available
             if (!this.scenes || this.scenes.length === 0) {
                 await this.loadScenesData();
@@ -183,8 +190,25 @@ class StoryEngine {
             } catch (e) {
                 console.warn('Entities load failed (placeholder endpoint?)', e);
             }
+            
+            // T10 Performance Monitoring - Measure rendering time
+            const renderStart = performance.now();
+            
             // Render core content
             this.renderScene(scene, blocks, entities);
+            
+            const renderEnd = performance.now();
+            const sceneLoadEnd = performance.now();
+            
+            // T10 Performance Monitoring - Log scene performance
+            this.logScenePerformance({
+                sceneId: sceneId,
+                blockCount: blocks.length,
+                totalLoadTime: sceneLoadEnd - sceneLoadStart,
+                renderTime: renderEnd - renderStart,
+                timestamp: new Date().toISOString()
+            });
+            
             // Breadcrumb
             const crumb = document.getElementById('scene-breadcrumb-title');
             if (crumb) crumb.textContent = scene.title || 'Untitled Scene';
@@ -220,6 +244,116 @@ class StoryEngine {
             if (before.length) prevSelect.value = before[before.length - 1].id;
             if (after.length) nextSelect.value = after[0].id;
         }
+    }
+
+    // T10 Performance Monitoring System
+    initPerformanceMonitoring() {
+        if (!this.performanceMetrics) {
+            this.performanceMetrics = {
+                sceneLoads: [],
+                blockOperations: [],
+                saveOperations: [],
+                reorderOperations: [],
+                undoOperations: []
+            };
+        }
+    }
+    
+    logScenePerformance(metrics) {
+        this.performanceMetrics.sceneLoads.push(metrics);
+        
+        // Performance warnings based on block count and timing
+        if (metrics.blockCount >= 10) {
+            console.log('📊 Scene Performance:', {
+                blocks: metrics.blockCount,
+                loadTime: `${metrics.totalLoadTime.toFixed(2)}ms`,
+                renderTime: `${metrics.renderTime.toFixed(2)}ms`
+            });
+        }
+        
+        if (metrics.blockCount >= 50) {
+            console.warn('⚠️ Large scene detected:', metrics.blockCount, 'blocks', 
+                        `(${metrics.totalLoadTime.toFixed(2)}ms load time)`);
+        }
+        
+        if (metrics.blockCount >= 100) {
+            console.error('🚨 Very large scene:', metrics.blockCount, 'blocks. Consider optimization.');
+        }
+        
+        if (metrics.totalLoadTime > 1000) { // 1 second threshold
+            console.warn('🐌 Slow scene load:', `${metrics.totalLoadTime.toFixed(2)}ms`);
+        }
+        
+        // Memory usage if available
+        if (performance.memory) {
+            const memMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2);
+            if (metrics.blockCount >= 50 || memMB > 50) {
+                console.log('💾 Memory usage:', `${memMB}MB`);
+            }
+        }
+    }
+    
+    measureBlockOperation(operationType, blockId, operationFn) {
+        const startTime = performance.now();
+        const initialBlockCount = this.sceneState?.blocks?.length || 0;
+        
+        // Execute the operation
+        const result = operationFn();
+        
+        const endTime = performance.now();
+        const finalBlockCount = this.sceneState?.blocks?.length || 0;
+        const duration = endTime - startTime;
+        
+        const operationMetrics = {
+            type: operationType,
+            blockId: blockId,
+            duration: duration,
+            initialBlockCount: initialBlockCount,
+            finalBlockCount: finalBlockCount,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Store metrics by operation type
+        if (this.performanceMetrics) {
+            this.performanceMetrics.blockOperations.push(operationMetrics);
+        }
+        
+        // Log slow operations
+        if (duration > 100) { // 100ms threshold
+            console.warn(`🐌 Slow ${operationType} operation:`, `${duration.toFixed(2)}ms`, 
+                        `(${finalBlockCount} blocks)`);
+        }
+        
+        // Log performance for large scenes
+        if (finalBlockCount >= 50 && duration > 50) {
+            console.log(`📊 ${operationType} Performance:`, {
+                duration: `${duration.toFixed(2)}ms`,
+                blocks: finalBlockCount
+            });
+        }
+        
+        return result;
+    }
+    
+    getPerformanceReport() {
+        if (!this.performanceMetrics) return null;
+        
+        const report = {
+            sceneLoads: this.performanceMetrics.sceneLoads.length,
+            blockOperations: this.performanceMetrics.blockOperations.length,
+            averageLoadTime: 0,
+            slowestLoad: 0,
+            largestScene: 0
+        };
+        
+        if (this.performanceMetrics.sceneLoads.length > 0) {
+            const loadTimes = this.performanceMetrics.sceneLoads.map(m => m.totalLoadTime);
+            report.averageLoadTime = loadTimes.reduce((a, b) => a + b, 0) / loadTimes.length;
+            report.slowestLoad = Math.max(...loadTimes);
+            report.largestScene = Math.max(...this.performanceMetrics.sceneLoads.map(m => m.blockCount));
+        }
+        
+        return report;
     }
 
     attachSceneEditorHandlers() {
@@ -884,16 +1018,21 @@ Benefits: Business logic, validation, complex operations`;
         const locationEl = document.getElementById('scene-location');
         const payload = {};
         if (titleEl) payload.title = titleEl.textContent.trim();
-        if (locationEl) payload.location_id = locationEl.value || null;
+        if (locationEl) {
+            // Ensure empty strings are converted to null for UUID validation
+            const locationValue = locationEl.value?.trim();
+            payload.location_id = locationValue && locationValue !== '' ? locationValue : null;
+        }
         if (Object.keys(payload).length === 0) return;
         try {
+            console.debug('Saving scene changes:', payload);
             const res = await this.api.put(`/api/v1/scenes/${this.currentSceneId}`, payload);
             this._sceneDirty = false;
             const status = document.getElementById('scene-save-status');
             if (status) status.textContent = 'Saved';
             console.log('💾 Scene saved', res);
         } catch (e) {
-            console.error('Scene save failed', e);
+            console.error('Scene save failed', e, 'payload was:', payload);
             const status = document.getElementById('scene-save-status');
             if (status) status.textContent = 'Save failed';
         }
@@ -902,19 +1041,23 @@ Benefits: Business logic, validation, complex operations`;
     // Block creation
     async addBlock(type) {
         if (!this.currentSceneId) return;
-        const currentBlocks = Array.from(document.querySelectorAll('#scene-content details[data-block-id]'));
-        const order = currentBlocks.length;
-        // Include scene_id to satisfy SceneBlockCreate Pydantic model
-        const blockData = { scene_id: this.currentSceneId, block_type: type, order, content: '' };
-        try {
-            const resp = await this.api.post(`/api/v1/scenes/${this.currentSceneId}/blocks`, blockData);
-            const newBlock = this.extractBlockFromResponse(resp, type, order);
-            // Return created block so scene-editor extension can append without full reload
-            return newBlock;
-        } catch (e) {
-            console.error('Failed to add block', e);
-            throw e;
-        }
+        
+        // T10 Performance Monitoring - Measure block creation
+        return this.measureBlockOperation('blockCreate', 'new', async () => {
+            const currentBlocks = Array.from(document.querySelectorAll('#scene-content details[data-block-id]'));
+            const order = currentBlocks.length;
+            // Include scene_id to satisfy SceneBlockCreate Pydantic model
+            const blockData = { scene_id: this.currentSceneId, block_type: type, order, content: '' };
+            try {
+                const resp = await this.api.post(`/api/v1/scenes/${this.currentSceneId}/blocks`, blockData);
+                const newBlock = this.extractBlockFromResponse(resp, type, order);
+                // Return created block so scene-editor extension can append without full reload
+                return newBlock;
+            } catch (e) {
+                console.error('Failed to add block', e);
+                throw e;
+            }
+        });
     }
 
     // T3: Robust API response extraction with multiple fallback paths
@@ -973,15 +1116,18 @@ Benefits: Business logic, validation, complex operations`;
     }
     async saveBlock(blockId, detailsEl) {
         if (!this.currentSceneId) return;
-        try {
-            // Determine block type
-            const blockType = detailsEl.getAttribute('data-block-type');
-            let payload = {};
-            
-            if (blockType === 'prose') {
-                const ta = detailsEl.querySelector('textarea');
-                if (ta) payload.content = ta.value;
-            } else if (blockType === 'dialogue') {
+        
+        // T10 Performance Monitoring - Measure block save operation
+        return this.measureBlockOperation('blockSave', blockId, async () => {
+            try {
+                // Determine block type
+                const blockType = detailsEl.getAttribute('data-block-type');
+                let payload = {};
+                
+                if (blockType === 'prose') {
+                    const ta = detailsEl.querySelector('textarea');
+                    if (ta) payload.content = ta.value;
+                } else if (blockType === 'dialogue') {
                 // T9: Handle structured dialogue data
                 const dialogueLines = detailsEl.querySelectorAll('.dialogue-line');
                 if (dialogueLines.length > 0) {
@@ -1037,13 +1183,82 @@ Benefits: Business logic, validation, complex operations`;
             
             await this.api.put(`/api/v1/scenes/${this.currentSceneId}/blocks/${blockId}`, payload);
             console.log('💾 Block saved', blockId);
-        } catch (e) {
-            console.error('Failed to save block', blockId, e);
-        }
+            } catch (e) {
+                console.error('Failed to save block', blockId, e);
+            }
+        });
     }
 }
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.storyEngine = new StoryEngine();
+    
+    // T10 Performance Monitoring - Global performance report function
+    window.getPerformanceReport = function() {
+        if (window.storyEngine && window.storyEngine.getPerformanceReport) {
+            const report = window.storyEngine.getPerformanceReport();
+            console.log('📊 Performance Report:', report);
+            
+            if (window.storyEngine.performanceMetrics) {
+                console.log('📈 Detailed Metrics:', {
+                    sceneLoads: window.storyEngine.performanceMetrics.sceneLoads,
+                    recentBlockOps: window.storyEngine.performanceMetrics.blockOperations.slice(-10)
+                });
+                
+                // Performance recommendations
+                if (report.largestScene >= 100) {
+                    console.warn('💡 Recommendation: Consider splitting scenes with 100+ blocks for better performance');
+                }
+                if (report.slowestLoad > 2000) {
+                    console.warn('💡 Recommendation: Scene load times over 2s may indicate performance issues');
+                }
+            }
+            
+            return report;
+        } else {
+            console.log('Performance monitoring not available');
+            return null;
+        }
+    };
+    
+    // T10 Performance Monitoring - Global stress test function for testing with many blocks
+    window.performanceStressTest = async function(targetBlocks = 50) {
+        if (!window.storyEngine || !window.storyEngine.currentSceneId) {
+            console.error('No scene loaded for stress testing');
+            return;
+        }
+        
+        const currentBlockCount = document.querySelectorAll('#scene-content details[data-block-id]').length;
+        const blocksToAdd = Math.max(0, targetBlocks - currentBlockCount);
+        
+        if (blocksToAdd === 0) {
+            console.log(`Scene already has ${currentBlockCount} blocks (target: ${targetBlocks})`);
+            return;
+        }
+        
+        console.log(`🧪 Performance Stress Test: Adding ${blocksToAdd} blocks...`);
+        const startTime = performance.now();
+        
+        for (let i = 0; i < blocksToAdd; i++) {
+            const blockType = ['prose', 'dialogue', 'milestone'][i % 3];
+            try {
+                await window.storyEngine.addBlock(blockType);
+                if (i % 10 === 0) {
+                    console.log(`Added ${i + 1}/${blocksToAdd} blocks...`);
+                }
+            } catch (e) {
+                console.error(`Failed to add block ${i + 1}:`, e);
+                break;
+            }
+        }
+        
+        const endTime = performance.now();
+        const finalBlockCount = document.querySelectorAll('#scene-content details[data-block-id]').length;
+        
+        console.log(`✅ Stress test completed: ${finalBlockCount} total blocks in ${(endTime - startTime).toFixed(2)}ms`);
+        
+        // Run performance report
+        setTimeout(() => window.getPerformanceReport(), 1000);
+    };
 });
