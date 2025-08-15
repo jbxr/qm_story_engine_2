@@ -95,6 +95,10 @@ class ApiClient {
         return this.put(`/api/v1/scenes/${sceneId}/blocks/reorder`, { block_ids: blockIds });
     }
 
+    async reorderSceneBlock(sceneId, blockId, newOrder) {
+        return this.put(`/api/v1/scenes/${sceneId}/blocks/${blockId}/reorder`, { new_order: newOrder });
+    }
+
     // =================================================================
     // ENTITY OPERATIONS
     // =================================================================

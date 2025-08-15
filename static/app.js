@@ -904,15 +904,16 @@ Benefits: Business logic, validation, complex operations`;
         if (!this.currentSceneId) return;
         const currentBlocks = Array.from(document.querySelectorAll('#scene-content details[data-block-id]'));
         const order = currentBlocks.length;
-        const blockData = { block_type: type, order, content: '' };
+        // Include scene_id to satisfy SceneBlockCreate Pydantic model
+        const blockData = { scene_id: this.currentSceneId, block_type: type, order, content: '' };
         try {
             const resp = await this.api.post(`/api/v1/scenes/${this.currentSceneId}/blocks`, blockData);
-            const newBlock = resp.data?.block || resp.block || resp.data; // flexible handling
-            // Fetch blocks again for accurate ordering
-            await this.loadSceneIntoEditor(this.currentSceneId);
-            console.log('➕ Block added', newBlock);
+            const newBlock = resp.data?.block || resp.data?.item || resp.data?.data || resp.data || resp.block;
+            // Return created block so scene-editor extension can append without full reload
+            return newBlock;
         } catch (e) {
             console.error('Failed to add block', e);
+            throw e;
         }
     }
 

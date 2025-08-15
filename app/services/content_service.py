@@ -12,7 +12,7 @@ Handles complex content workflows:
 
 from typing import List, Dict, Optional, Any, Tuple
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..services.database import get_db
 from ..models.api_models import (
@@ -161,14 +161,23 @@ class ContentService:
             for block_id, new_order in reorder_data.block_order.items():
                 result = self.db.table("scene_blocks").update({
                     "order": new_order,
-                    "updated_at": datetime.now(datetime.timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat()
                 }).eq("id", block_id).execute()
                 
                 if result.data:
                     updated_blocks.extend(result.data)
             
-            # Return ordered blocks
-            return self.get_ordered_blocks(reorder_data.scene_id)
+            # Return simple success response for reorder operation
+            # Query blocks without entity joins to avoid schema issues
+            simple_query = self.db.table("scene_blocks").select("*").eq("scene_id", str(reorder_data.scene_id)).order("order")
+            result = simple_query.execute()
+            
+            blocks = []
+            for block in result.data:
+                block_data = serialize_database_response(block)
+                blocks.append(block_data)
+            
+            return blocks
             
         except Exception as e:
             raise Exception(f"Failed to reorder blocks: {str(e)}")

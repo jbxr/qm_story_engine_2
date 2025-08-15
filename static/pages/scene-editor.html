@@ -66,9 +66,11 @@
                 <div id="world-query-results"><small>No queries yet.</small></div>
             </div>
         </section>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem; align-items:center;">
             <button id="save-scene-btn" type="button" class="primary">Save Changes</button>
-            <small id="scene-save-status" style="align-self:center; opacity:0.8;"></small>
+            <button id="undo-last-block" type="button" class="secondary outline" title="Undo last block change">Undo</button>
+            <small id="scene-save-status" style="opacity:0.8;"></small>
         </div>
+        <div id="scene-global-status" style="margin-top:0.25rem; font-size:0.75rem; opacity:0.75;"></div>
     </aside>
 </section>
