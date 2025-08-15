@@ -1,7 +1,7 @@
 # Scene Editor UX / Architecture Plan
 
 Last updated: 2025-08-14
-Status: IN PROGRESS (Incremental add block path implemented; reorder & delete server sync pending)
+Status: IN PROGRESS (T1, T2, T3, T4, T5, T6 complete: Full CRUD operations + robust handling + undo + status UI working)
 
 ## 1. Goals
 Provide a structured, low-latency writing environment for scenes supporting:
@@ -66,15 +66,15 @@ Priority Legend: P0 critical, P1 important, P2 enhancement, P3 future.
 
 ID | Priority | Task | Acceptance Criteria
 ---|---|---|---
-T1 | P0 | Fix addBlock incremental path fully (remove any legacy reload assumptions) | ✅ Implemented: New block appended, state updated, no full reload
-T2 | P0 | Reorder (Up/Down) implementation | Buttons swap DOM + update sceneState + call reorder endpoint; order persists on reload
-T3 | P0 | Robust ID/source for new blocks | Ensure API returns canonical block object; fallback normalization layer
-T4 | P1 | Block delete (server) | DELETE endpoint call + optimistic removal + error rollback
-T5 | P1 | Undo stack (basic) | Last N (e.g. 10) block content / order operations reversible
-T6 | P1 | Central status UI | Unified status component subscribing to bus; color-coded states (saving, saved, error)
-T7 | P1 | Dirty navigation guard | Prompt if unsaved scene meta or pending block saves when leaving editor
-T8 | P1 | Milestone structured persistence | Split subject/verb/object mapping to dedicated fields instead of merged content string
-T9 | P1 | Dialogue structure | Decide representation (lines JSON vs plain content); implement editing UI + save
+T1 | P0 | Fix addBlock incremental path fully (remove any legacy reload assumptions) | ✅ **COMPLETE**: New block appended, state updated, no full reload
+T2 | P0 | Reorder (Up/Down) implementation | ✅ **COMPLETE**: Buttons swap DOM + update sceneState + call reorder endpoint; order persists on reload
+T3 | P0 | Robust ID/source for new blocks | ✅ **COMPLETE**: Enhanced normalization with validation, robust API response extraction, and comprehensive error handling
+T4 | P1 | Block delete (server) | ✅ **COMPLETE**: DELETE endpoint call + optimistic removal + error rollback
+T5 | P1 | Undo stack (basic) | ✅ **COMPLETE**: Comprehensive undo for all operations (create, delete, reorder, content) with 10-action history
+T6 | P1 | Central status UI | ✅ **COMPLETE**: Unified status component with color-coded states, icons, and loading animations
+T7 | P1 | Dirty navigation guard | ✅ **COMPLETE**: Browser-level protection prevents data loss; dirty state detection for scene and blocks working; internal navigation guard architecture implemented
+T8 | P1 | Milestone structured persistence | ✅ **COMPLETE**: Structured milestone interface with entity dropdowns, subject_id/verb/object_id persistence, backward compatibility, integrated with T3/T5
+T9 | P1 | Dialogue structure | ✅ **COMPLETE**: Structured dialogue with speaker dropdowns, dynamic line management, lines array persistence, preview integration with T3/T5
 T10 | P2 | Performance profiling | Measure block append & autosave impact with 100+ blocks
 T11 | P2 | Batch reorder optimization | Apply multiple moves then send minimal update sequence
 T12 | P2 | Accessibility pass | Keyboard navigation for blocks; ARIA roles; focus management on add/delete
@@ -94,8 +94,8 @@ Milestone Data Model | Using generic block fields only | Map to dedicated fields
 Undo Strategy | Not yet instrumented | Introduce action log before complex transforms (reorder, delete) ship
 
 ## 7. Near-Term Implementation Sequence (Suggested)
-Sprint A (Stability): T1, T2, T4, T6, T7
-Sprint B (Semantics): T8, T9, T5 (undo after semantics to capture richer state)
+Sprint A (Stability): ✅ T1, T2, T4, T6, T5 **COMPLETE** (Full CRUD + robust handling + status + undo)
+Sprint B (Semantics): T7, T8, T9 (dirty guard, milestone structure, dialogue structure)
 Sprint C (UX Polish): T10, T12, T13, minor perf fixes
 Sprint D (Advanced): T11, T14, exploratory for T15–T17
 
@@ -134,9 +134,17 @@ Milestone Weight | Editable now or deferred?
 Location Handling | Promote locations to managed entity type UI?
 
 ## 12. Immediate Action Items (Next Commit)
-- Implement T1 & T2 concurrently (ensure addBlock no reload, enable up/down reorders)
-- Add global status emitter (hook block:saved & scene:loaded → update #scene-global-status)
-- Prepare data normalization util for block responses (id, block_type, order, content, subject, verb, object)
+- ✅ **COMPLETE**: Implement T1 & T2 concurrently (ensure addBlock no reload, enable up/down reorders)
+- ✅ **COMPLETE**: Add global status emitter (hook block:saved & scene:loaded → update #scene-global-status)
+- ✅ **COMPLETE**: Prepare data normalization util for block responses (id, block_type, order, content, subject, verb, object)
+- ✅ **COMPLETE**: Implement T5 (Undo stack basic) - Last N block content/order operations reversible
+- ✅ **COMPLETE**: Implement T3 (Robust ID/source) - Robust block normalization and API response extraction
+- ✅ **COMPLETE**: Implement T4 (Block delete server sync) - Optimistic deletion with server sync and error rollback
+- ✅ **COMPLETE**: Implement T6 (Central status UI) - Enhanced status component with color-coded states and animations
+- ✅ **COMPLETE**: Implement T7 (Dirty navigation guard) - Browser-level protection preventing data loss, internal navigation guard architecture complete
+- ✅ **COMPLETE**: Implement T8 (Milestone structured persistence) - Structured milestone interface with entity dropdowns, backend persistence integration
+- ✅ **COMPLETE**: Implement T9 (Dialogue structure) - Structured dialogue editor with speaker selection, dynamic line management, and structured data persistence
+- **NEXT**: Implement T10 (Performance profiling) or T11 (Batch reorder optimization) - Next priority scene editor features
 
 ---
 Document Owner: Dev Toolkit (auto-generated assistance)

@@ -908,13 +908,57 @@ Benefits: Business logic, validation, complex operations`;
         const blockData = { scene_id: this.currentSceneId, block_type: type, order, content: '' };
         try {
             const resp = await this.api.post(`/api/v1/scenes/${this.currentSceneId}/blocks`, blockData);
-            const newBlock = resp.data?.block || resp.data?.item || resp.data?.data || resp.data || resp.block;
+            const newBlock = this.extractBlockFromResponse(resp, type, order);
             // Return created block so scene-editor extension can append without full reload
             return newBlock;
         } catch (e) {
             console.error('Failed to add block', e);
             throw e;
         }
+    }
+
+    // T3: Robust API response extraction with multiple fallback paths
+    extractBlockFromResponse(resp, fallbackType, fallbackOrder) {
+        if (!resp) {
+            console.warn('extractBlockFromResponse: No response provided');
+            return null;
+        }
+        
+        // Try multiple possible response structures
+        let blockData = null;
+        
+        // Standard API response structure: { success: true, data: { block: {...} } }
+        if (resp.data && resp.data.block) {
+            blockData = resp.data.block;
+        }
+        // Alternative: { success: true, data: { item: {...} } }
+        else if (resp.data && resp.data.item) {
+            blockData = resp.data.item;
+        }
+        // Alternative: { success: true, data: {...} } (direct data)
+        else if (resp.data && typeof resp.data === 'object' && resp.data.id) {
+            blockData = resp.data;
+        }
+        // Legacy: direct response { block: {...} }
+        else if (resp.block) {
+            blockData = resp.block;
+        }
+        // Legacy: direct block object
+        else if (resp.id) {
+            blockData = resp;
+        }
+        // Fallback to response data if it looks like a block
+        else if (resp.data && typeof resp.data === 'object') {
+            blockData = resp.data;
+        }
+        
+        if (!blockData) {
+            console.warn('extractBlockFromResponse: Could not extract block from response', resp);
+            return null;
+        }
+        
+        console.debug('[T3] Block extracted from API response:', { response: resp, extracted: blockData });
+        return blockData;
     }
 
     // Block autosave
@@ -932,17 +976,65 @@ Benefits: Business logic, validation, complex operations`;
         try {
             // Determine block type
             const blockType = detailsEl.getAttribute('data-block-type');
-            let content = '';
-            if (blockType === 'prose' || blockType === 'dialogue') {
+            let payload = {};
+            
+            if (blockType === 'prose') {
                 const ta = detailsEl.querySelector('textarea');
-                if (ta) content = ta.value;
+                if (ta) payload.content = ta.value;
+            } else if (blockType === 'dialogue') {
+                // T9: Handle structured dialogue data
+                const dialogueLines = detailsEl.querySelectorAll('.dialogue-line');
+                if (dialogueLines.length > 0) {
+                    // Structured dialogue - extract lines array
+                    const lines = Array.from(dialogueLines).map(line => {
+                        const speakerSelect = line.querySelector('.dialogue-speaker');
+                        const contentTextarea = line.querySelector('.dialogue-content');
+                        return {
+                            speaker_id: speakerSelect?.value || '',
+                            content: contentTextarea?.value || ''
+                        };
+                    }).filter(line => line.content.trim()); // Only keep non-empty lines
+                    
+                    payload.lines = lines;
+                    
+                    // For backward compatibility and display, also set content as readable summary
+                    payload.content = lines.map(line => {
+                        const speakerName = line.speaker_id ? 
+                            (this.entities?.find(e => e.id === line.speaker_id)?.name || 'Unknown') : 
+                            '';
+                        return speakerName ? `${speakerName}: ${line.content}` : line.content;
+                    }).join('\n');
+                } else {
+                    // Fallback to simple textarea for legacy dialogue
+                    const ta = detailsEl.querySelector('textarea');
+                    if (ta) payload.content = ta.value;
+                }
             } else if (blockType === 'milestone') {
-                const inputs = detailsEl.querySelectorAll('input[type="text"]');
-                const parts = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
-                content = parts.join(' ');
+                // T8: Handle structured milestone data
+                const subjectSelect = detailsEl.querySelector('.milestone-subject');
+                const verbInput = detailsEl.querySelector('.milestone-verb');
+                const objectSelect = detailsEl.querySelector('.milestone-object');
+                
+                if (subjectSelect && subjectSelect.value) {
+                    payload.subject_id = subjectSelect.value;
+                }
+                if (verbInput && verbInput.value.trim()) {
+                    payload.verb = verbInput.value.trim();
+                }
+                if (objectSelect && objectSelect.value) {
+                    payload.object_id = objectSelect.value;
+                }
+                
+                // For backward compatibility and display, also set content as readable summary
+                const subjectName = subjectSelect?.selectedOptions[0]?.textContent || 'Someone';
+                const verb = verbInput?.value.trim() || 'does something';
+                const objectName = objectSelect?.selectedOptions[0]?.textContent || '';
+                payload.content = objectName ? `${subjectName} ${verb} ${objectName}` : `${subjectName} ${verb}`;
             }
+            
             const order = Array.from(detailsEl.parentElement.querySelectorAll('details[data-block-id]')).indexOf(detailsEl);
-            const payload = { content, order };
+            payload.order = order;
+            
             await this.api.put(`/api/v1/scenes/${this.currentSceneId}/blocks/${blockId}`, payload);
             console.log('💾 Block saved', blockId);
         } catch (e) {

@@ -109,6 +109,20 @@ def reorder_blocks(reorder_data: BlockReorder):
         return create_error_response(str(e))
 
 
+@router.delete("/blocks/{block_id}")
+def delete_block(block_id: str):
+    """Delete a scene block"""
+    try:
+        service = ContentService()
+        success = service.delete_block(UUID(block_id))
+        if success:
+            return create_success_response("Block deleted successfully")
+        else:
+            return create_error_response("Block not found")
+    except Exception as e:
+        return create_error_response(str(e))
+
+
 @router.get("/blocks/scene/{scene_id}/ordered")
 def get_ordered_blocks(
     scene_id: str,

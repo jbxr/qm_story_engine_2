@@ -8,6 +8,7 @@ class PageLoader {
         this.currentPage = null;
         this.pageCache = new Map(); // Cache loaded pages for better performance
         this.mainContent = null;
+        this.navigationGuard = null; // T7: Navigation guard function
         this.init();
     }
 
@@ -26,6 +27,24 @@ class PageLoader {
     }
 
     async loadPage(pageName) {
+        // T7: Check navigation guard before proceeding
+        if (this.navigationGuard && typeof this.navigationGuard === 'function') {
+            return new Promise((resolve) => {
+                this.navigationGuard(pageName, (proceed) => {
+                    if (proceed) {
+                        this._loadPageInternal(pageName).then(resolve);
+                    } else {
+                        console.log('[T7] Navigation blocked by guard');
+                        resolve(false);
+                    }
+                });
+            });
+        } else {
+            return this._loadPageInternal(pageName);
+        }
+    }
+
+    async _loadPageInternal(pageName) {
         try {
             console.log(`🔄 Loading page: ${pageName}`);
             
@@ -48,11 +67,25 @@ class PageLoader {
             this.currentPage = pageName;
             
             console.log(`✅ Page loaded successfully: ${pageName}`);
+            return true;
             
         } catch (error) {
             console.error(`❌ Failed to load page ${pageName}:`, error);
             this.showErrorState(error.message);
+            return false;
         }
+    }
+
+    // T7: Set navigation guard function
+    setNavigationGuard(guardFunction) {
+        this.navigationGuard = guardFunction;
+        console.debug('[T7] Navigation guard set');
+    }
+
+    // T7: Clear navigation guard
+    clearNavigationGuard() {
+        this.navigationGuard = null;
+        console.debug('[T7] Navigation guard cleared');
     }
 
     async getPageContent(pageName) {

@@ -182,6 +182,14 @@ class ContentService:
         except Exception as e:
             raise Exception(f"Failed to reorder blocks: {str(e)}")
     
+    def delete_block(self, block_id: UUID) -> bool:
+        """Delete a scene block"""
+        try:
+            result = self.db.table("scene_blocks").delete().eq("id", str(block_id)).execute()
+            return len(result.data) > 0 if result.data else False
+        except Exception as e:
+            raise Exception(f"Failed to delete block: {str(e)}")
+    
     def get_ordered_blocks(self, scene_id: UUID, block_types: Optional[List[str]] = None) -> List[SceneBlockResponse]:
         """Get blocks in correct order with optional filtering"""
         try:
